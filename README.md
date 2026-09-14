@@ -140,9 +140,11 @@ CREATE DATABASE olist_db
 
 開啟 [olist_columns_dictionary.html](olist_columns_dictionary.html)，可查看目前 9 張 Olist 主資料表的欄位中英對照。行銷漏斗資料目前未納入清理、檢查或 MariaDB 匯入流程，不應誤當成可直接匯入的輸入。
 
+✦ ───────────────────────────── ✦
+
 ## 快速開始（懶人包）
 
-想直接開跑、不想在說明文件裡迷路？跟著下面四步走，資料就會乖乖進 MariaDB：
+> 🌟 想直接開跑、不想在說明文件裡迷路？跟著下面四步走，資料就會乖乖進 MariaDB：
 
 ```text
 🧰 準備工具  →  🔐 設定連線  →  📦 放入 CSV  →  🚀 啟動流程
