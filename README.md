@@ -12,7 +12,7 @@ olist/
 ├─ db/                      # MariaDB 建表 SQL
 ├─ clean_olist.py           # 格式整理，不刪除列、不去除重複值
 ├─ check_olist.py           # clean CSV 品質檢查
-├─ setup_mariadb.py         # 自動建立資料庫、資料表並匯入資料
+├─ setup_mariadb.py         # 建立資料庫與資料表
 ├─ import_to_mariadb.py     # 分批匯入 MariaDB
 ├─ olist_columns_dictionary.html # 欄位中英對照
 ├─ .env.example             # MariaDB 設定範本
@@ -81,9 +81,9 @@ MARIADB_DATABASE=olist_db
 
 `.env` 已列入 `.gitignore`，請勿提交真實密碼或資料庫連線資訊。
 
-## 4. 建立 MariaDB 資料庫、資料表與資料集
+## 4. 建立 MariaDB 資料庫與資料表
 
-確認 MariaDB 服務已啟動，且 `.env` 已填好後，直接執行：
+確認 MariaDB 服務已啟動，且 `.env` 已填好後執行：
 
 ```powershell
 uv run python setup_mariadb.py
@@ -91,13 +91,10 @@ uv run python setup_mariadb.py
 
 這個指令會依序：
 
-1. 清理 `data/raw/` 的 9 張 CSV。
-2. 執行資料品質檢查；檢查失敗時停止，不建立或匯入資料表。
-3. 使用 `db/olist_db.sql` 所指定的設定建立資料庫。
-4. 依照 `db/` 內的 SQL 建立 9 張資料表。
-5. 以每批 5,000 筆資料匯入 `data/clean/`。
+1. 使用 `.env` 的設定建立 `olist_db` 資料庫。
+2. 依照 `db/` 內的 SQL 建立 9 張資料表。
 
-初始化程式不會刪除資料庫、資料表或資料列。已完整匯入的資料表會跳過；部分匯入的資料表會停止，以避免重複追加。
+初始化程式不會刪除資料庫、資料表或資料列，也不會匯入 CSV。
 
 若只想手動分開執行，也可以使用以下流程：
 
@@ -117,12 +114,17 @@ CREATE DATABASE olist_db
 
 ```powershell
 & .\.venv\Scripts\python.exe .\clean_olist.py
-& .\.venv\Scripts\python.exe .\check_olist.py
 ```
 
 清理程式會統一欄位名稱、修正 `lenght` 拼字、清除文字前後空白、將空字串轉為缺失值、整理日期為 `YYYY-MM-DD HH:MM:SS`、轉換數值欄位，以及將 ZIP Code 保留為 5 位字串。它不會刪除欄位、資料列或重複值。
 
-品質檢查會驗證欄位 schema、NULL、主鍵與複合鍵、外鍵、日期解析、數值格式與 ZIP Code 格式；發現錯誤時會以非零狀態結束。原始日期異常只會被報告，不會在清理時擅自修改。
+清理完成後，建議執行品質檢查：
+
+```powershell
+& .\.venv\Scripts\python.exe .\check_olist.py
+```
+
+品質檢查會驗證欄位 schema、NULL、主鍵與複合鍵、外鍵、日期解析、數值格式與 ZIP Code 格式；發現錯誤時會以非零狀態結束。這一步不是建立資料庫的必要條件，但在匯入前執行可以提早發現資料問題。原始日期異常只會被報告，不會在清理時擅自修改。
 
 ## 6. 匯入 MariaDB
 
@@ -170,7 +172,14 @@ Copy-Item .env.example .env
 uv run python setup_mariadb.py
 ```
 
-接下來程式會自動清理資料、檢查品質、建立資料庫與資料表，再把資料匯入 MariaDB。你只要泡杯飲料等它完成即可。這個指令不會刪除既有資料。
+接下來請依序執行下面三個指令：先整理資料，再視需要檢查，最後建立資料庫、資料表並匯入資料。每一步都各司其職，出了問題也比較容易找到是哪一關卡住。這些指令都不會刪除既有資料。
+
+```powershell
+uv run python clean_olist.py
+uv run python check_olist.py       # 可選，但建議執行
+uv run python setup_mariadb.py
+uv run python import_to_mariadb.py
+```
 
 ## 注意事項
 

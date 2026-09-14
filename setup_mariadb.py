@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-import check_olist
-import clean_olist
 import import_to_mariadb
 
 
@@ -82,18 +80,13 @@ def create_tables() -> None:
 
 
 def main() -> None:
-    print("Olist -> MariaDB setup")
+    print("Olist -> MariaDB database setup")
     print("=" * 70)
     print("This command does not delete databases, tables, or rows.")
 
-    clean_olist.main()
-    if check_olist.main() != 0:
-        raise RuntimeError("Data quality checks failed; database setup was stopped.")
-
     create_database()
     create_tables()
-    import_to_mariadb.main()
-    print("\nDatabase setup and data import completed.")
+    print("\nDatabase and tables are ready. Run import_to_mariadb.py to import data.")
 
 
 if __name__ == "__main__":
