@@ -144,7 +144,14 @@ CREATE DATABASE olist_db
 
 想直接開跑、不想在說明文件裡迷路？跟著下面四步走，資料就會乖乖進 MariaDB：
 
-### 1. 先把工具準備好
+```text
+🧰 準備工具  →  🔐 設定連線  →  📦 放入 CSV  →  🚀 啟動流程
+	uv sync         .env          data/raw/       setup_mariadb.py
+```
+
+> 🎯 **小目標：** 看到最後的 `Import completed.`，就代表資料已經順利抵達 MariaDB。
+
+### 🧰 1. 先把工具準備好
 
 在專案根目錄執行：
 
@@ -152,7 +159,7 @@ CREATE DATABASE olist_db
 uv sync
 ```
 
-### 2. 告訴程式 MariaDB 在哪裡
+### 🔐 2. 告訴程式 MariaDB 在哪裡
 
 複製設定範本：
 
@@ -160,19 +167,29 @@ uv sync
 Copy-Item .env.example .env
 ```
 
-接著打開 `.env` 填入 MariaDB 密碼，並確認 MariaDB 服務已經啟動。密碼請留在自己的電腦裡，不要讓它出門旅行。
+接著打開 `.env` 填入 MariaDB 密碼，並確認 MariaDB 服務已經啟動。
 
-### 3. 把 Olist CSV 放到指定位置
+> 🔒 密碼請留在自己的電腦裡，不要讓它出門旅行。
+
+### 📦 3. 把 Olist CSV 放到指定位置
 
 將 9 張原始 CSV 放進 `data/raw/`，檔名保持不變。檔案到位，程式才知道要去哪裡找資料。
 
-### 4. 按下自動化按鈕
+```text
+data/raw/
+├─ olist_customers_dataset.csv
+├─ olist_orders_dataset.csv
+├─ olist_products_dataset.csv
+└─ ... 其餘 6 張 CSV
+```
+
+### 🚀 4. 按下自動化按鈕
 
 ```powershell
 uv run python setup_mariadb.py
 ```
 
-接下來請依序執行下面三個指令：先整理資料，再視需要檢查，最後建立資料庫、資料表並匯入資料。每一步都各司其職，出了問題也比較容易找到是哪一關卡住。這些指令都不會刪除既有資料。
+接下來請依序執行下面四個指令：先整理資料，再視需要檢查，接著建立資料庫與資料表，最後匯入資料。每一步都各司其職，出了問題也比較容易找到是哪一關卡住。這些指令都不會刪除既有資料。
 
 ```powershell
 uv run python clean_olist.py
@@ -180,6 +197,8 @@ uv run python check_olist.py       # 可選，但建議執行
 uv run python setup_mariadb.py
 uv run python import_to_mariadb.py
 ```
+
+✅ **完成！** 如果四個步驟都順利跑完，Olist 資料就已經在 MariaDB 裡排好隊了。
 
 ## 注意事項
 
