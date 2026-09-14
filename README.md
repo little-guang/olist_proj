@@ -12,7 +12,9 @@ olist/
 ├─ db/                      # MariaDB 建表 SQL
 ├─ clean_olist.py           # 格式整理，不刪除列、不去除重複值
 ├─ check_olist.py           # clean CSV 品質檢查
+├─ setup_mariadb.py         # 自動建立資料庫、資料表並匯入資料
 ├─ import_to_mariadb.py     # 分批匯入 MariaDB
+├─ olist_columns_dictionary.html # 欄位中英對照
 ├─ .env.example             # MariaDB 設定範本
 └─ README.md
 ```
@@ -79,7 +81,25 @@ MARIADB_DATABASE=olist_db
 
 `.env` 已列入 `.gitignore`，請勿提交真實密碼或資料庫連線資訊。
 
-## 4. 建立 MariaDB 資料庫與資料表
+## 4. 建立 MariaDB 資料庫、資料表與資料集
+
+確認 MariaDB 服務已啟動，且 `.env` 已填好後，直接執行：
+
+```powershell
+uv run python setup_mariadb.py
+```
+
+這個指令會依序：
+
+1. 清理 `data/raw/` 的 9 張 CSV。
+2. 執行資料品質檢查；檢查失敗時停止，不建立或匯入資料表。
+3. 使用 `db/olist_db.sql` 所指定的設定建立資料庫。
+4. 依照 `db/` 內的 SQL 建立 9 張資料表。
+5. 以每批 5,000 筆資料匯入 `data/clean/`。
+
+初始化程式不會刪除資料庫、資料表或資料列。已完整匯入的資料表會跳過；部分匯入的資料表會停止，以避免重複追加。
+
+若只想手動分開執行，也可以使用以下流程：
 
 先建立資料庫：
 
@@ -89,7 +109,7 @@ CREATE DATABASE olist_db
 	COLLATE utf8mb4_unicode_ci;
 ```
 
-接著執行 `db/olist_db.sql`，或依照資料表相依順序執行 `db/` 內的 SQL 檔案。
+接著執行 `db/olist_db.sql`，或依照資料表相依順序執行 `db/` 內的 SQL 檔案。一般使用情境不需要手動執行這些 SQL，`setup_mariadb.py` 會自動處理。
 
 `order_reviews` 必須使用複合主鍵 `PRIMARY KEY (review_id, order_id)`，因為原始資料中的 `review_id` 可能重複。`geolocation` 保留重複資料，不應設定限制每列唯一性的主鍵。
 
@@ -116,7 +136,7 @@ CREATE DATABASE olist_db
 
 ## 7. 欄位字典與延伸資料
 
-目前版本的執行流程只涵蓋上述 9 張 Olist 主資料表。行銷漏斗資料與 HTML 欄位字典尚未放入此工作區；若日後加入，請將資料放在獨立目錄，並在此補上欄位中英對照與來源授權資訊。不要把未納入清理與匯入流程的資料誤當成可直接匯入 MariaDB 的輸入。
+開啟 [olist_columns_dictionary.html](olist_columns_dictionary.html)，可查看目前 9 張 Olist 主資料表的欄位中英對照。行銷漏斗資料目前未納入清理、檢查或 MariaDB 匯入流程，不應誤當成可直接匯入的輸入。
 
 ## 注意事項
 
