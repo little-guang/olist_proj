@@ -19,6 +19,40 @@ olist/
 └─ README.md
 ```
 
+## 快速開始（懶人包）
+
+第一次使用時，依序執行以下步驟：
+
+### 1. 安裝依賴
+
+在專案根目錄執行：
+
+```powershell
+uv sync
+```
+
+### 2. 設定 MariaDB
+
+複製環境變數範本：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+接著開啟 `.env`，填入 MariaDB 密碼，並確認 MariaDB 服務已啟動。
+
+### 3. 放入原始資料
+
+將 Olist 的 9 張 CSV 放到 `data/raw/`，檔名請保持不變。詳細檔名請參考下方「1. 下載資料」。
+
+### 4. 一鍵建立資料庫並匯入
+
+```powershell
+uv run python setup_mariadb.py
+```
+
+完成後，資料庫、資料表與資料集就會自動建立並匯入 MariaDB。這個指令不會刪除既有資料。
+
 ## 1. 下載資料
 
 從 [Kaggle Olist Brazilian E-Commerce](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) 下載以下 9 個 CSV，放到 `data/raw/`，並保留原始檔名：
