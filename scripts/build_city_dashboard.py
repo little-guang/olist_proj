@@ -31,6 +31,18 @@ ZERO_METRICS = (
     "payment_count",
     "installment_sum",
 )
+WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+DELIVERY_STAGES = {
+    "purchase_to_approval": ("purchased", "approved_at"),
+    "approval_to_carrier": ("approved_at", "carrier_at"),
+    "carrier_to_customer": ("carrier_at", "delivered_at"),
+}
+DELAY_BUCKETS = (
+    ("on_time", "準時／提前"),
+    ("late_1_3", "延遲 1–3 天"),
+    ("late_4_7", "延遲 4–7 天"),
+    ("late_8_plus", "延遲 8 天以上"),
+)
 
 
 def read_csv(file_name: str):
@@ -109,6 +121,9 @@ def build_dashboard_data() -> dict:
     orders: dict[str, dict] = {}
     monthly_buyers: dict[str, set[str]] = defaultdict(set)
     monthly_city_buyers: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    demand_months: dict[str, dict] = defaultdict(
+        lambda: {"hours": [0] * 24, "weekdays": [0] * 7}
+    )
     category_orders: dict[tuple[str, str], set[str]] = defaultdict(set)
     seller_orders: dict[str, set[str]] = defaultdict(set)
     order_sellers: dict[str, set[str]] = defaultdict(set)
@@ -139,6 +154,8 @@ def build_dashboard_data() -> dict:
         order = {
             "month": month,
             "purchased": purchased,
+            "approved_at": parse_datetime(row["order_approved_at"]),
+            "carrier_at": parse_datetime(row["order_delivered_carrier_date"]),
             "status": row["order_status"],
             "delivered_at": parse_datetime(row["order_delivered_customer_date"]),
             "estimated_at": parse_datetime(row["order_estimated_delivery_date"]),
@@ -148,6 +165,8 @@ def build_dashboard_data() -> dict:
             "revenue_cents": 0,
         }
         orders[row["order_id"]] = order
+        demand_months[month]["hours"][purchased.hour] += 1
+        demand_months[month]["weekdays"][purchased.weekday()] += 1
         monthly_buyers[month].add(customer["buyer_id"])
         monthly_city_buyers[(order["city"], order["state"], month)].add(
             customer["buyer_id"]
@@ -329,6 +348,106 @@ def build_dashboard_data() -> dict:
             installment_sum=installments,
         )
 
+    delivery_months: dict[str, dict] = defaultdict(
+        lambda: {
+            "duration_buckets": defaultdict(
+                lambda: {
+                    "orders": 0,
+                    "duration_days_sum": 0.0,
+                    "review_score_sum": 0,
+                    "review_count": 0,
+                }
+            ),
+            "delay_buckets": defaultdict(
+                lambda: {
+                    "orders": 0,
+                    "review_score_sum": 0,
+                    "review_count": 0,
+                    "low_review_count": 0,
+                }
+            ),
+            "stages": {
+                stage: {
+                    "count": 0,
+                    "sum_hours": 0.0,
+                    "low_review_count": 0,
+                    "low_review_hours": 0.0,
+                    "high_review_count": 0,
+                    "high_review_hours": 0.0,
+                }
+                for stage in DELIVERY_STAGES
+            },
+            "correlation": {
+                "count": 0,
+                "sum_duration_days": 0.0,
+                "sum_score": 0,
+                "sum_duration_squared": 0.0,
+                "sum_score_squared": 0,
+                "sum_duration_score": 0.0,
+            },
+        }
+    )
+    for order in orders.values():
+        delivered_at = order["delivered_at"]
+        purchased = order["purchased"]
+        if order["status"] != "delivered" or delivered_at is None:
+            continue
+        duration_days = (delivered_at - purchased).total_seconds() / 86400
+        if duration_days < 0:
+            continue
+        analysis = delivery_months[order["month"]]
+        review_score = order.get("review_score")
+
+        if review_score is not None:
+            duration_bucket = min(60, int(duration_days // 5) * 5)
+            point = analysis["duration_buckets"][duration_bucket]
+            point["orders"] += 1
+            point["duration_days_sum"] += duration_days
+            point["review_score_sum"] += review_score
+            point["review_count"] += 1
+
+            correlation = analysis["correlation"]
+            correlation["count"] += 1
+            correlation["sum_duration_days"] += duration_days
+            correlation["sum_score"] += review_score
+            correlation["sum_duration_squared"] += duration_days**2
+            correlation["sum_score_squared"] += review_score**2
+            correlation["sum_duration_score"] += duration_days * review_score
+
+        estimated_at = order["estimated_at"]
+        if estimated_at is not None:
+            delay_days = (delivered_at - estimated_at).total_seconds() / 86400
+            delay_bucket = (
+                "on_time" if delay_days <= 0
+                else "late_1_3" if delay_days <= 3
+                else "late_4_7" if delay_days <= 7
+                else "late_8_plus"
+            )
+            cohort = analysis["delay_buckets"][delay_bucket]
+            cohort["orders"] += 1
+            if review_score is not None:
+                cohort["review_count"] += 1
+                cohort["review_score_sum"] += review_score
+                cohort["low_review_count"] += int(review_score <= 2)
+
+        for stage, (start_name, end_name) in DELIVERY_STAGES.items():
+            start_at = order[start_name]
+            end_at = order[end_name]
+            if start_at is None or end_at is None:
+                continue
+            duration_hours = (end_at - start_at).total_seconds() / 3600
+            if duration_hours < 0:
+                continue
+            stage_metrics = analysis["stages"][stage]
+            stage_metrics["count"] += 1
+            stage_metrics["sum_hours"] += duration_hours
+            if review_score is not None and review_score <= 2:
+                stage_metrics["low_review_count"] += 1
+                stage_metrics["low_review_hours"] += duration_hours
+            elif review_score is not None and review_score >= 4:
+                stage_metrics["high_review_count"] += 1
+                stage_metrics["high_review_hours"] += duration_hours
+
     public_cities = []
     for (city, state), series in groups["cities"].items():
         public_cities.append(
@@ -351,6 +470,38 @@ def build_dashboard_data() -> dict:
         {"type": payment_type, "series": public_series(months, series)}
         for payment_type, series in sorted(groups["payments"].items())
     ]
+    public_demand = [
+        {
+            "month": month,
+            "hours": demand_months[month]["hours"],
+            "weekdays": demand_months[month]["weekdays"],
+        }
+        for month in months
+    ]
+    public_delivery_analysis = []
+    for month in months:
+        analysis = delivery_months[month]
+        public_delivery_analysis.append(
+            {
+                "month": month,
+                "duration_buckets": [
+                    {"start_day": start_day, **values}
+                    for start_day, values in sorted(
+                        analysis["duration_buckets"].items()
+                    )
+                ],
+                "delay_buckets": [
+                    {
+                        "key": key,
+                        "label": label,
+                        **analysis["delay_buckets"][key],
+                    }
+                    for key, label in DELAY_BUCKETS
+                ],
+                "stages": analysis["stages"],
+                "correlation": analysis["correlation"],
+            }
+        )
 
     profiles = list(buyer_profiles.values())
     recency_values = sorted((reference_at - p["last_at"]).days for p in profiles)
@@ -493,6 +644,8 @@ def build_dashboard_data() -> dict:
         "states": public_states,
         "categories": public_categories,
         "payments": public_payments,
+        "demand": {"months": public_demand, "weekday_names": WEEKDAY_NAMES},
+        "delivery_analysis": public_delivery_analysis,
         "rfm": {
             "as_of": reference_at.date().isoformat(),
             "cutoffs": {

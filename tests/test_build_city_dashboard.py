@@ -42,6 +42,8 @@ class BuildDashboardDataTests(unittest.TestCase):
                     "order_id": "o1",
                     "customer_id": "c1",
                     "order_purchase_timestamp": "2020-01-10 10:00:00",
+                    "order_approved_at": "2020-01-10 12:00:00",
+                    "order_delivered_carrier_date": "2020-01-10 18:00:00",
                     "order_status": "delivered",
                     "order_delivered_customer_date": "2020-01-11 10:00:00",
                     "order_estimated_delivery_date": "2020-01-12 00:00:00",
@@ -50,6 +52,8 @@ class BuildDashboardDataTests(unittest.TestCase):
                     "order_id": "o2",
                     "customer_id": "c2",
                     "order_purchase_timestamp": "2020-03-10 10:00:00",
+                    "order_approved_at": "2020-03-10 11:00:00",
+                    "order_delivered_carrier_date": "2020-03-10 12:00:00",
                     "order_status": "delivered",
                     "order_delivered_customer_date": "2020-03-15 10:00:00",
                     "order_estimated_delivery_date": "2020-03-12 00:00:00",
@@ -58,6 +62,8 @@ class BuildDashboardDataTests(unittest.TestCase):
                     "order_id": "o3",
                     "customer_id": "c3",
                     "order_purchase_timestamp": "2020-03-20 10:00:00",
+                    "order_approved_at": "",
+                    "order_delivered_carrier_date": "",
                     "order_status": "processing",
                     "order_delivered_customer_date": "",
                     "order_estimated_delivery_date": "",
@@ -117,6 +123,12 @@ class BuildDashboardDataTests(unittest.TestCase):
                     "payment_value": "240.00",
                     "payment_installments": "1",
                 },
+                {
+                    "order_id": "o3",
+                    "payment_type": "not_defined",
+                    "payment_value": "0.00",
+                    "payment_installments": "1",
+                },
             ],
         }
 
@@ -140,6 +152,31 @@ class BuildDashboardDataTests(unittest.TestCase):
         self.assertEqual(result["totals"]["undelivered"], 1)
         self.assertEqual(result["totals"]["payment_cents"], 37_700)
 
+        demand = {row["month"]: row for row in result["demand"]["months"]}
+        self.assertEqual(demand["2020-01"]["hours"][10], 1)
+        self.assertEqual(demand["2020-02"]["hours"], [0] * 24)
+        self.assertEqual(demand["2020-03"]["hours"][10], 2)
+        self.assertEqual(demand["2020-01"]["weekdays"][4], 1)
+        self.assertEqual(demand["2020-03"]["weekdays"][1], 1)
+        self.assertEqual(demand["2020-03"]["weekdays"][4], 1)
+
+        delivery = {row["month"]: row for row in result["delivery_analysis"]}
+        self.assertEqual(delivery["2020-01"]["duration_buckets"][0]["review_count"], 1)
+        self.assertEqual(delivery["2020-01"]["duration_buckets"][0]["review_score_sum"], 2)
+        self.assertEqual(delivery["2020-01"]["delay_buckets"][0]["key"], "on_time")
+        self.assertEqual(delivery["2020-01"]["delay_buckets"][0]["low_review_count"], 1)
+        march_delay = next(
+            item for item in delivery["2020-03"]["delay_buckets"]
+            if item["key"] == "late_4_7"
+        )
+        self.assertEqual(march_delay["orders"], 1)
+        self.assertEqual(march_delay["review_score_sum"], 5)
+        self.assertEqual(
+            delivery["2020-01"]["stages"]["purchase_to_approval"]["low_review_hours"],
+            2,
+        )
+        self.assertEqual(delivery["2020-03"]["correlation"]["count"], 1)
+
         monthly = {row["month"]: row for row in result["monthly"]}
         self.assertEqual(monthly["2020-02"].get("buyers", 0), 0)
         self.assertEqual(monthly["2020-02"].get("orders", 0), 0)
@@ -161,6 +198,16 @@ class BuildDashboardDataTests(unittest.TestCase):
             for row in payment["series"]
         )
         self.assertEqual(payment_total, result["totals"]["payment_cents"])
+        not_defined = next(
+            payment for payment in result["payments"] if payment["type"] == "not_defined"
+        )
+        self.assertEqual(
+            sum(row.get("payment_count", 0) for row in not_defined["series"]),
+            1,
+        )
+        self.assertTrue(
+            all("payment_cents" not in row for row in not_defined["series"])
+        )
 
         rfm_buyers = sum(segment["customers"] for segment in result["rfm"]["segments"])
         rfm_repeat_buyers = sum(

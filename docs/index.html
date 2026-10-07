@@ -159,7 +159,7 @@
     <div class="period-note" id="period-note">正在載入分析資料…</div>
   </header>
   <nav aria-label="報告章節">
-    <a href="#overview">營運總覽</a><a href="#trend">趨勢</a><a href="#category">品類</a>
+    <a href="#overview">營運總覽</a><a href="#trend">趨勢</a><a href="#demand">購買時段</a><a href="#category">品類</a>
     <a href="#customer">顧客</a><a href="#payments">付款</a><a href="#delivery">物流</a>
     <a href="#geography">區域／城市</a><a href="#seller">賣家</a>
   </nav>
@@ -167,10 +167,9 @@
     <div id="load-error" hidden></div>
     <section id="overview">
       <div class="section-title"><div><h2>營運總覽</h2><div class="hint">期間篩選會同步更新可分月彙總的營運分析</div></div></div>
-      <div class="controls">
+      <div class="controls" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div><label for="start-month">開始月份</label><select id="start-month"></select></div>
         <div><label for="end-month">結束月份</label><select id="end-month"></select></div>
-        <div><label for="city-state">區域分析州別</label><select id="city-state"><option value="">全部州別</option></select></div>
       </div>
       <div class="cards">
         <article class="card"><div class="card-label">訂單</div><div class="metric" id="kpi-orders">—</div><div class="metric-note" id="kpi-items"></div></article>
@@ -203,6 +202,21 @@
       <div class="panel">
         <div class="panel-head"><div><h3>同期年增</h3><div class="hint" id="yoy-caption">找出所選期間內最新且有去年同期資料的月份</div></div></div>
         <div id="yoy-result" class="callout"></div>
+      </div>
+    </section>
+
+    <section id="demand">
+      <div class="section-title"><div><h2>顧客下單尖峰時段</h2><div class="hint">依訂單建立時間統計；時間沿用來源資料記錄，不另作時區轉換</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>每日各時段訂單量</h3><div class="hint">找出一天中的需求尖峰</div></div></div>
+          <div id="purchase-hour-bars" class="bar-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>星期別訂單量</h3><div class="hint">比較平日與週末需求</div></div></div>
+          <div id="purchase-weekday-bars" class="bar-list"></div>
+          <div id="purchase-peak-note" class="callout" style="margin-top:14px"></div>
+        </div>
       </div>
     </section>
 
@@ -275,10 +289,27 @@
           <div class="callout" id="review-note" style="margin-top:14px"></div>
         </div>
       </div>
+      <div class="section-title"><div><h2>配送時間與評論的關聯</h2><div class="hint">僅計算有配送日期及有效評論的已送達訂單；相關性不代表因果</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>配送天數 × 平均評分</h3><div class="hint">每個氣泡代表一段 5 天配送區間，大小代表評論樣本數</div></div></div>
+          <div id="delivery-review-scatter" class="chart"></div>
+          <div id="delivery-correlation-note" class="callout"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>延遲程度與評論</h3><div class="hint">依實際送達時間相對預計送達日期分組</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>配送結果</th><th>訂單</th><th>有效評論</th><th>平均評分</th><th>低分率（1–2）</th></tr></thead><tbody id="delay-review-rows"></tbody></table></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>長時間配送可能卡在哪個環節？</h3><div class="hint">比較低分（1–2）與高分（4–5）訂單各階段平均耗時；缺日期或時間倒置的階段不納入</div></div></div>
+        <div class="table-wrap"><table><thead><tr><th>配送階段</th><th>全部樣本平均</th><th>低分樣本平均</th><th>高分樣本平均</th><th>低分－高分</th><th>可用樣本</th></tr></thead><tbody id="delivery-stage-rows"></tbody></table></div>
+        <div id="delivery-stage-note" class="callout" style="margin-top:14px"></div>
+      </div>
     </section>
 
     <section id="geography">
-      <div class="section-title"><div><h2>區域與城市機會</h2><div class="hint">州別篩選只套用於本區，避免混淆其他全國指標</div></div></div>
+      <div class="section-title"><div><h2>區域與城市機會</h2><div class="hint">選擇「全部州別」比較全國；選擇單一州別後，州別排名與城市明細都會同步篩選</div></div></div>
       <div class="controls" style="grid-template-columns:minmax(0,260px) minmax(0,260px)">
         <div><label for="city-state-local">州別篩選</label><select id="city-state-local"><option value="">全部州別</option></select></div>
         <div><label for="city-sort">城市排序</label><select id="city-sort"><option value="revenue">商品金額</option><option value="orders">訂單數</option><option value="aov">平均客單價</option><option value="late">延遲率</option></select></div>
@@ -307,8 +338,22 @@
     </section>
   </main>
   <footer>
-    資料來源：<a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce" rel="noreferrer">Brazilian E-Commerce Public Dataset by Olist</a>。
-    來源資料標示為 CC BY-NC-SA 4.0；本頁為彙總改作。金額均以 BRL 表示。商品金額不含運費、退款或利潤，不代表公司淨營收。
+    <section aria-labelledby="attribution-title" class="panel">
+      <h2 id="attribution-title">資料來源與授權</h2>
+      <p>
+        本網站使用 <a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce" rel="noreferrer">Brazilian E-Commerce Public Dataset by Olist</a>，
+        資料集由 Olist 提供並透過 Kaggle 發布，來源資料採用
+        <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="license noreferrer">Creative Commons 姓名標示－非商業性－相同方式分享 4.0 國際（CC BY-NC-SA 4.0）</a>。
+      </p>
+      <p>
+        本網站對資料進行了修改：篩選訂單期間、彙總地理資料、每筆訂單保留最新評論，並計算月趨勢、品類、顧客分群、物流與賣家等彙總分析。
+        這些資料集衍生內容依 CC BY-NC-SA 4.0 分享，不得用於商業目的；再散布或改作時請標示原始來源、連結授權並說明修改。
+        Olist 與 Kaggle 不代表認可或背書本網站。網站程式碼不屬於該資料集授權範圍。
+      </p>
+      <p>
+        金額均以 BRL 表示。商品金額是商品明細價格總和，不含運費、退款或利潤，不代表公司淨營收。
+      </p>
+    </section>
     <div id="data-quality" style="margin-top:7px"></div>
   </footer>
   <script>
@@ -450,6 +495,205 @@
       container.append(svg);
     }
 
+    function drawDeliveryScatter(points) {
+      const container = document.getElementById("delivery-review-scatter");
+      container.replaceChildren();
+      if (!points.length) {
+        container.append(el("div", "所選期間沒有同時具備送達時間與評論的訂單。", "empty"));
+        return;
+      }
+      const width = 720, height = 260;
+      const left = 55, right = 18, top = 18, bottom = 42;
+      const plotWidth = width - left - right, plotHeight = height - top - bottom;
+      const maxDays = Math.max(10, ...points.map((point) => point.days));
+      const maxCount = Math.max(1, ...points.map((point) => point.count));
+      const svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", "配送天數與平均顧客評論分數彙總散點圖");
+
+      for (let score = 1; score <= 5; score++) {
+        const y = top + plotHeight * (5 - score) / 4;
+        const grid = document.createElementNS(SVG_NS, "line");
+        grid.setAttribute("x1", left); grid.setAttribute("x2", width - right);
+        grid.setAttribute("y1", y); grid.setAttribute("y2", y);
+        grid.setAttribute("stroke", "#e8eee8");
+        svg.append(grid);
+        const label = document.createElementNS(SVG_NS, "text");
+        label.setAttribute("x", left - 9); label.setAttribute("y", y + 4);
+        label.setAttribute("text-anchor", "end"); label.setAttribute("fill", "#748178");
+        label.setAttribute("font-size", "11"); label.textContent = String(score);
+        svg.append(label);
+      }
+      for (let tick = 0; tick <= maxDays; tick += Math.max(5, Math.ceil(maxDays / 6 / 5) * 5)) {
+        const x = left + plotWidth * tick / maxDays;
+        const label = document.createElementNS(SVG_NS, "text");
+        label.setAttribute("x", x); label.setAttribute("y", height - 12);
+        label.setAttribute("text-anchor", "middle"); label.setAttribute("fill", "#748178");
+        label.setAttribute("font-size", "10"); label.textContent = `${tick} 天`;
+        svg.append(label);
+      }
+      for (const point of points) {
+        const circle = document.createElementNS(SVG_NS, "circle");
+        circle.setAttribute("cx", left + plotWidth * point.days / maxDays);
+        circle.setAttribute("cy", top + plotHeight * (5 - point.score) / 4);
+        circle.setAttribute("r", String(4 + 13 * Math.sqrt(point.count / maxCount)));
+        circle.setAttribute("fill", point.score < 3 ? "#b84c3c" : "#20664c");
+        circle.setAttribute("fill-opacity", "0.62");
+        circle.setAttribute("stroke", "#fff");
+        circle.setAttribute("stroke-width", "1.5");
+        const title = document.createElementNS(SVG_NS, "title");
+        title.textContent = `${point.startDay >= 60 ? "60 天以上" : `${point.startDay}–${point.startDay + 4} 天`}：平均 ${decimalFormat.format(point.score)} 分，${numberFormat.format(point.count)} 則評論`;
+        circle.append(title);
+        svg.append(circle);
+      }
+      container.append(svg);
+    }
+
+    function renderDemand() {
+      const months = new Set(selectedMonths());
+      const selected = report.demand.months.filter((row) => months.has(row.month));
+      const hours = Array(24).fill(0);
+      const weekdays = Array(7).fill(0);
+      for (const row of selected) {
+        row.hours.forEach((count, hour) => { hours[hour] += count; });
+        row.weekdays.forEach((count, weekday) => { weekdays[weekday] += count; });
+      }
+      const hourBars = document.getElementById("purchase-hour-bars");
+      hourBars.replaceChildren();
+      const hourMax = Math.max(1, ...hours);
+      hours.forEach((count, hour) => {
+        appendBar(hourBars, `${String(hour).padStart(2, "0")}:00–${String(hour).padStart(2, "0")}:59`, count, hourMax, numberFormat.format(count));
+      });
+      const weekdayBars = document.getElementById("purchase-weekday-bars");
+      weekdayBars.replaceChildren();
+      const weekdayMax = Math.max(1, ...weekdays);
+      const names = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
+      weekdays.forEach((count, weekday) => {
+        appendBar(weekdayBars, names[weekday], count, weekdayMax, numberFormat.format(count));
+      });
+      const peakHour = hours.indexOf(hourMax);
+      const peakWeekday = weekdays.indexOf(weekdayMax);
+      setText("purchase-peak-note", `尖峰時段為 ${String(peakHour).padStart(2, "0")}:00–${String(peakHour).padStart(2, "0")}:59（${numberFormat.format(hourMax)} 筆）；訂單最多的星期為${names[peakWeekday]}（${numberFormat.format(weekdayMax)} 筆）。`);
+    }
+
+    function renderDeliveryAnalysis() {
+      const selected = new Set(selectedMonths());
+      const rows = report.delivery_analysis.filter((row) => selected.has(row.month));
+      const durationBuckets = new Map();
+      const delayBuckets = new Map();
+      const stages = new Map();
+      const correlation = {
+        count: 0,
+        sum_duration_days: 0,
+        sum_score: 0,
+        sum_duration_squared: 0,
+        sum_score_squared: 0,
+        sum_duration_score: 0,
+      };
+      for (const row of rows) {
+        for (const point of row.duration_buckets) {
+          const current = durationBuckets.get(point.start_day) || {
+            orders: 0, duration_days_sum: 0, review_score_sum: 0, review_count: 0,
+          };
+          for (const key of ["orders", "duration_days_sum", "review_score_sum", "review_count"]) {
+            current[key] += point[key] || 0;
+          }
+          durationBuckets.set(point.start_day, current);
+        }
+        for (const bucket of row.delay_buckets) {
+          const current = delayBuckets.get(bucket.key) || { ...bucket, orders: 0, review_count: 0, review_score_sum: 0, low_review_count: 0 };
+          for (const key of ["orders", "review_count", "review_score_sum", "low_review_count"]) {
+            current[key] += bucket[key] || 0;
+          }
+          delayBuckets.set(bucket.key, current);
+        }
+        for (const [name, stage] of Object.entries(row.stages)) {
+          const current = stages.get(name) || {
+            count: 0, sum_hours: 0, low_review_count: 0, low_review_hours: 0,
+            high_review_count: 0, high_review_hours: 0,
+          };
+          for (const key of Object.keys(current)) current[key] += stage[key] || 0;
+          stages.set(name, current);
+        }
+        for (const key of Object.keys(correlation)) correlation[key] += row.correlation[key] || 0;
+      }
+
+      const points = [...durationBuckets.entries()].map(([startDay, point]) => ({
+        startDay,
+        days: point.review_count ? point.duration_days_sum / point.review_count : startDay + 2,
+        score: point.review_count ? point.review_score_sum / point.review_count : 0,
+        count: point.review_count,
+      })).filter((point) => point.count > 0).sort((a, b) => a.days - b.days);
+      drawDeliveryScatter(points);
+      const n = correlation.count;
+      const covariance = n
+        ? correlation.sum_duration_score - correlation.sum_duration_days * correlation.sum_score / n
+        : 0;
+      const varianceDays = n
+        ? correlation.sum_duration_squared - correlation.sum_duration_days ** 2 / n
+        : 0;
+      const varianceScore = n
+        ? correlation.sum_score_squared - correlation.sum_score ** 2 / n
+        : 0;
+      const r = varianceDays > 0 && varianceScore > 0
+        ? covariance / Math.sqrt(varianceDays * varianceScore)
+        : null;
+      setText("delivery-correlation-note", r === null
+        ? `有效配對樣本 ${numberFormat.format(n)} 筆；樣本不足或變異不足，無法估算線性相關。`
+        : `配送天數與評分的 Pearson 相關係數 r = ${decimalFormat.format(r)}（配對樣本 ${numberFormat.format(n)} 筆）。負值表示較長配送時間在此資料中伴隨較低評分；這是描述性關聯，不足以證明因果。`);
+
+      const delayTable = document.getElementById("delay-review-rows");
+      delayTable.replaceChildren();
+      for (const [key, label] of [
+        ["on_time", "準時／提前"],
+        ["late_1_3", "延遲 1–3 天"],
+        ["late_4_7", "延遲 4–7 天"],
+        ["late_8_plus", "延遲 8 天以上"],
+      ]) {
+        const item = delayBuckets.get(key) || { orders: 0, review_count: 0, review_score_sum: 0, low_review_count: 0 };
+        const tr = document.createElement("tr");
+        cell(tr, label, true);
+        cell(tr, numberFormat.format(item.orders));
+        cell(tr, numberFormat.format(item.review_count));
+        cell(tr, item.review_count ? decimalFormat.format(item.review_score_sum / item.review_count) : "—");
+        cell(tr, item.review_count ? pct(item.low_review_count / item.review_count) : "—");
+        delayTable.append(tr);
+      }
+
+      const stageLabels = {
+        purchase_to_approval: "下單 → 核准",
+        approval_to_carrier: "核准 → 交物流",
+        carrier_to_customer: "交物流 → 顧客收貨",
+      };
+      const stageTable = document.getElementById("delivery-stage-rows");
+      stageTable.replaceChildren();
+      let largestLowScoreGap = null;
+      for (const [name, label] of Object.entries(stageLabels)) {
+        const stage = stages.get(name) || {
+          count: 0, sum_hours: 0, low_review_count: 0, low_review_hours: 0,
+          high_review_count: 0, high_review_hours: 0,
+        };
+        const lowAverage = stage.low_review_count ? stage.low_review_hours / stage.low_review_count : null;
+        const highAverage = stage.high_review_count ? stage.high_review_hours / stage.high_review_count : null;
+        const gap = lowAverage !== null && highAverage !== null ? lowAverage - highAverage : null;
+        if (gap !== null && (largestLowScoreGap === null || gap > largestLowScoreGap.gap)) {
+          largestLowScoreGap = { label, gap };
+        }
+        const tr = document.createElement("tr");
+        cell(tr, label, true);
+        cell(tr, stage.count ? `${decimalFormat.format(stage.sum_hours / stage.count)} 小時` : "—");
+        cell(tr, lowAverage === null ? "—" : `${decimalFormat.format(lowAverage)} 小時`);
+        cell(tr, highAverage === null ? "—" : `${decimalFormat.format(highAverage)} 小時`);
+        cell(tr, gap === null ? "—" : `${gap > 0 ? "+" : ""}${decimalFormat.format(gap)} 小時`);
+        cell(tr, `全部 ${numberFormat.format(stage.count)}；低分 ${numberFormat.format(stage.low_review_count)}；高分 ${numberFormat.format(stage.high_review_count)}`);
+        stageTable.append(tr);
+      }
+      setText("delivery-stage-note", largestLowScoreGap && largestLowScoreGap.gap > 0
+        ? `在目前期間，低分訂單相較高分訂單，差距最大的是「${largestLowScoreGap.label}」（低分組多 ${decimalFormat.format(largestLowScoreGap.gap)} 小時）。這提供優先調查線索，不代表該階段必然造成低評分；仍需檢查州別、賣家與商品等因素。`
+        : "目前期間沒有足夠證據顯示低分組在某個配送階段明顯耗時較長；請搭配各州、賣家樣本與延遲分組結果判讀。");
+    }
+
     function renderOverview(monthRows) {
       const total = sumRows(monthRows);
       const validDelivery = total.delivered || 0;
@@ -570,17 +814,21 @@
     }
 
     function renderPayments(monthRows) {
-      const totals = report.payments.map((payment) => ({
-        type: payment.type,
-        ...sumRows(payment.series),
-      })).filter((payment) => payment.payment_count > 0)
+      const totals = report.payments.map((payment) => {
+        const values = sumRows(payment.series);
+        return {
+          type: payment.type,
+          ...values,
+          payment_cents: values.payment_cents || 0,
+        };
+      }).filter((payment) => payment.payment_count > 0)
         .sort((a, b) => b.payment_cents - a.payment_cents);
-      const paymentTotal = totals.reduce((sum, item) => sum + item.payment_cents, 0);
+      const paymentTotal = totals.reduce((sum, item) => sum + (item.payment_cents || 0), 0);
       const mix = document.getElementById("payment-mix");
       const tbody = document.getElementById("payment-rows");
       mix.replaceChildren(); tbody.replaceChildren();
       for (const item of totals) {
-        const share = paymentTotal ? item.payment_cents / paymentTotal : 0;
+        const share = paymentTotal ? (item.payment_cents || 0) / paymentTotal : 0;
         const row = el("div", undefined, "mix-row");
         row.append(el("div", item.type, "mix-label"));
         const track = el("div", undefined, "mix-track");
@@ -641,7 +889,8 @@
       const stateRows = report.states.map((state) => ({
         state: state.state,
         ...sumRows(state.series),
-      })).sort((a, b) => b.revenue_cents - a.revenue_cents);
+      })).filter((state) => !selectedState || state.state === selectedState)
+        .sort((a, b) => b.revenue_cents - a.revenue_cents);
       const stateBars = document.getElementById("state-bars");
       stateBars.replaceChildren();
       const maxRevenue = Math.max(1, ...stateRows.map((state) => state.revenue_cents));
@@ -742,6 +991,8 @@
       renderCustomers();
       renderPayments(months);
       renderDelivery(months);
+      renderDemand();
+      renderDeliveryAnalysis();
       renderGeography();
       renderSellers();
     }
@@ -750,7 +1001,8 @@
       const response = await fetch("./data/business_summary.json");
       if (!response.ok) throw new Error(`商業分析資料載入失敗：HTTP ${response.status}`);
       report = await response.json();
-      if (!report.monthly || !report.period || !report.states) {
+      if (!report.monthly || !report.period || !report.states
+          || !report.demand || !report.delivery_analysis) {
         throw new Error("商業分析資料格式不完整");
       }
       const start = document.getElementById("start-month");
@@ -792,7 +1044,13 @@
       const box = document.getElementById("load-error");
       box.hidden = false;
       box.className = "error";
-      box.textContent = `${error.message}。請重新產生 docs/data/business_summary.json，並以 HTTP 伺服器開啟此頁。`;
+      if (location.protocol === "file:") {
+        box.textContent =
+          "圖表資料無法載入：目前是直接開啟 HTML 檔案，瀏覽器會阻止讀取旁邊的 JSON。請在專案根目錄執行「uv run python -m http.server 8000 --directory docs」，再開啟 http://localhost:8000。";
+      } else {
+        box.textContent =
+          `${error.message}。請確認 docs/data/business_summary.json 已產生並一併部署，再重新整理頁面。`;
+      }
     });
   </script>
 </body>
