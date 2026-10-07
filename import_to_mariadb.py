@@ -1,9 +1,9 @@
+import argparse
 import os
 from pathlib import Path
 
 import pandas as pd
 import pymysql
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,8 +12,6 @@ BASE_DIR = Path(__file__).resolve().parent
 CLEAN_DIR = BASE_DIR / "data" / "clean"
 CHUNK_SIZE = 5_000
 
-
-# Set MARIADB_PASSWORD before running instead of storing the password here.
 DB_CONFIG = {
     "host": os.getenv("MARIADB_HOST", "localhost"),
     "port": int(os.getenv("MARIADB_PORT", "3306")),
@@ -24,8 +22,6 @@ DB_CONFIG = {
     "cursorclass": pymysql.cursors.Cursor,
 }
 
-
-# Parent tables are imported before tables that normally reference them.
 TABLES = {
     "category_translation": {
         "file": "category_translation_clean.csv",
@@ -122,6 +118,7 @@ TABLES = {
             "geolocation_lng",
             "geolocation_city",
             "geolocation_state",
+            "geolocation_sample_count",
         ],
     },
 }
@@ -130,16 +127,19 @@ TABLES = {
 def get_connection():
     if not DB_CONFIG["password"]:
         raise RuntimeError(
-            "MARIADB_PASSWORD is not set. Set it before running the importer."
+            "MARIADB_PASSWORD is not set. Please set it in .env or environment variable."
         )
-
     return pymysql.connect(**DB_CONFIG)
 
 
 def convert_value(value):
-    if pd.isna(value):
+    """確保任何缺值 (NaN, pd.NA, None, 空字串) 都被安全轉為 Python None"""
+    if pd.isna(value) or value is None:
         return None
-    return value
+    val_str = str(value).strip()
+    if val_str.lower() in ["nan", "nat", "<na>", "none", ""]:
+        return None
+    return val_str
 
 
 def count_csv_rows(file_path: Path) -> int:
@@ -147,47 +147,11 @@ def count_csv_rows(file_path: Path) -> int:
         len(chunk)
         for chunk in pd.read_csv(
             file_path,
-            dtype="string",
+            dtype=str,
             usecols=[0],
             chunksize=CHUNK_SIZE,
         )
     )
-
-
-def get_table_row_count(connection, table_name: str) -> int:
-    cursor = connection.cursor()
-    try:
-        cursor.execute(f"SELECT COUNT(*) FROM `{table_name}`")
-        return int(cursor.fetchone()[0])
-    finally:
-        cursor.close()
-
-
-def validate_review_primary_key(connection) -> None:
-    cursor = connection.cursor()
-    try:
-        cursor.execute(
-            """
-            SELECT COLUMN_NAME
-            FROM information_schema.KEY_COLUMN_USAGE
-            WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'order_reviews'
-              AND CONSTRAINT_NAME = 'PRIMARY'
-            ORDER BY ORDINAL_POSITION
-            """
-        )
-        primary_key = [row[0] for row in cursor.fetchall()]
-    finally:
-        cursor.close()
-
-    expected = ["review_id", "order_id"]
-    if primary_key != expected:
-        raise RuntimeError(
-            "order_reviews must have PRIMARY KEY (review_id, order_id), "
-            f"but the database has PRIMARY KEY ({', '.join(primary_key)}). "
-            "Run: ALTER TABLE order_reviews DROP PRIMARY KEY, "
-            "ADD PRIMARY KEY (review_id, order_id);"
-        )
 
 
 def import_table(connection, table_name: str, config: dict) -> None:
@@ -199,23 +163,30 @@ def import_table(connection, table_name: str, config: dict) -> None:
 
     print(f"\n[{table_name}] Reading: {file_path.name}")
 
-    csv_rows = count_csv_rows(file_path)
-    existing_rows = get_table_row_count(connection, table_name)
-    if existing_rows == csv_rows:
-        print(f"  already contains {existing_rows:,} rows; skipped")
-        return
-    if existing_rows:
-        raise RuntimeError(
-            f"{table_name} already contains {existing_rows:,} of {csv_rows:,} rows. "
-            "Refusing to append to a partially imported table."
-        )
-
-    header = pd.read_csv(file_path, dtype="string", nrows=0).columns.tolist()
+    header = pd.read_csv(file_path, dtype=str, nrows=0).columns.tolist()
     if header != expected_columns:
         raise ValueError(
             f"{table_name} columns do not match.\n"
             f"Expected: {expected_columns}\n"
             f"Actual:   {header}"
+        )
+
+    csv_rows = count_csv_rows(file_path)
+    cursor = connection.cursor()
+    try:
+        cursor.execute(f"SELECT COUNT(*) FROM `{table_name}`")
+        existing_rows = cursor.fetchone()[0]
+    finally:
+        cursor.close()
+
+    if existing_rows == csv_rows:
+        print(f"  skipped: table already has {existing_rows:,} rows")
+        return
+    if existing_rows:
+        raise RuntimeError(
+            f"{table_name} contains {existing_rows:,} rows, but its CSV has "
+            f"{csv_rows:,}. No rows were changed; rerun with --replace to "
+            "explicitly replace all imported tables."
         )
 
     placeholders = ", ".join(["%s"] * len(expected_columns))
@@ -228,23 +199,28 @@ def import_table(connection, table_name: str, config: dict) -> None:
     imported_rows = 0
     cursor = connection.cursor()
     try:
+        # 使用 standard python data structure 以避開 pandas.NA 轉譯問題
         for chunk in pd.read_csv(
             file_path,
-            dtype="string",
-            keep_default_na=True,
-            na_filter=True,
+            dtype=str,
+            keep_default_na=False,  # 全部讀成字串，避免引入 pd.NA
             chunksize=CHUNK_SIZE,
         ):
             rows = [
-                tuple(convert_value(value) for value in row)
+                tuple(convert_value(val) for val in row)
                 for row in chunk.itertuples(index=False, name=None)
             ]
             cursor.executemany(sql, rows)
             imported_rows += len(rows)
-            print(f"  imported: {imported_rows:,}", end="\r")
+            print(f"  imported: {imported_rows:,} / {csv_rows:,}", end="\r")
 
+        if imported_rows != csv_rows:
+            raise RuntimeError(
+                f"{table_name} imported {imported_rows:,} rows, "
+                f"but its CSV contains {csv_rows:,}."
+            )
         connection.commit()
-        print(f"  imported: {imported_rows:,}")
+        print(f"  imported: {imported_rows:,} / {csv_rows:,}")
     except Exception:
         connection.rollback()
         raise
@@ -252,21 +228,66 @@ def import_table(connection, table_name: str, config: dict) -> None:
         cursor.close()
 
 
+def validate_replace_inputs() -> None:
+    for table_name, config in TABLES.items():
+        file_path = CLEAN_DIR / config["file"]
+        if not file_path.is_file():
+            raise FileNotFoundError(f"Clean CSV not found: {file_path}")
+
+        header = pd.read_csv(file_path, dtype=str, nrows=0).columns.tolist()
+        if header != config["columns"]:
+            raise ValueError(
+                f"{table_name} columns do not match.\n"
+                f"Expected: {config['columns']}\n"
+                f"Actual:   {header}"
+            )
+
+
+def clear_imported_tables(connection) -> None:
+    cursor = connection.cursor()
+    try:
+        cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+        for table_name in reversed(TABLES):
+            cursor.execute(f"DELETE FROM `{table_name}`")
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        try:
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
+        finally:
+            cursor.close()
+
+
 def main() -> None:
-    print("Olist -> MariaDB")
+    parser = argparse.ArgumentParser(description="Import cleaned Olist CSV files.")
+    parser.add_argument(
+        "--replace",
+        action="store_true",
+        help="Delete all imported table rows before loading the CSV files again.",
+    )
+    args = parser.parse_args()
+
+    print("Olist -> MariaDB Importer")
     print("=" * 70)
     print(f"Database: {DB_CONFIG['database']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}")
-    print("Existing rows are not deleted. Re-running may fail on duplicate keys.")
+
+    if args.replace:
+        validate_replace_inputs()
 
     connection = get_connection()
     try:
-        validate_review_primary_key(connection)
+        if args.replace:
+            print("Replacing all imported table rows as explicitly requested.")
+            clear_imported_tables(connection)
+
         for table_name, config in TABLES.items():
             import_table(connection, table_name, config)
     finally:
         connection.close()
 
-    print("\nImport completed.")
+    print("\nImport completed successfully.")
 
 
 if __name__ == "__main__":

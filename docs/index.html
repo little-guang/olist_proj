@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Olist 巴西電商商業分析：營收、品類、顧客、物流、付款、城市與賣家風險。">
+  <title>Olist 商業營運分析</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #192b25;
+      --muted: #65766e;
+      --paper: #f2f5f1;
+      --card: #fff;
+      --line: #e0e8e1;
+      --green: #20664c;
+      --green-2: #79a98a;
+      --mint: #e5f2e9;
+      --amber: #d99040;
+      --red: #b84c3c;
+      --navy: #344f65;
+      --shadow: 0 8px 24px #173f3410;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 85px; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+      line-height: 1.55;
+    }
+    header {
+      padding: 42px max(24px, calc((100vw - 1200px) / 2)) 30px;
+      background: linear-gradient(120deg, #173f34, #245c48 65%, #376b52);
+      color: #fff;
+    }
+    .eyebrow { color: #b8d7c5; font-size: .78rem; letter-spacing: .16em; }
+    h1 { margin: 9px 0 8px; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.1; }
+    header p { max-width: 790px; margin: 0; color: #d6e6dd; }
+    .period-note { margin-top: 14px; color: #bdd6c8; font-size: .85rem; }
+    nav {
+      position: sticky;
+      z-index: 5;
+      top: 0;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 10px max(16px, calc((100vw - 1200px) / 2));
+      border-bottom: 1px solid var(--line);
+      background: #ffffffed;
+      backdrop-filter: blur(12px);
+    }
+    nav a {
+      flex: 0 0 auto;
+      padding: 7px 11px;
+      border-radius: 8px;
+      color: #385247;
+      font-size: .86rem;
+      text-decoration: none;
+    }
+    nav a:hover { background: var(--mint); }
+    main { max-width: 1200px; margin: 25px auto 56px; padding: 0 20px; }
+    section { scroll-margin-top: 82px; }
+    .section-title { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 30px 0 13px; }
+    h2 { margin: 0; font-size: 1.3rem; }
+    h3 { margin: 0; font-size: 1.02rem; }
+    .hint, .small { color: var(--muted); font-size: .86rem; }
+    .controls, .cards, .grid-2, .grid-3 { display: grid; gap: 14px; }
+    .controls { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 15px; }
+    .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card, .panel {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+    .card { padding: 17px 19px; }
+    .panel { margin-top: 15px; padding: 20px; }
+    .card-label { color: var(--muted); font-size: .86rem; }
+    .metric { margin-top: 7px; font-size: clamp(1.45rem, 2.8vw, 2rem); font-weight: 720; letter-spacing: -.02em; }
+    .metric-note { margin-top: 2px; color: var(--muted); font-size: .8rem; }
+    label { display: block; margin: 0 0 5px; color: var(--muted); font-size: .82rem; }
+    select, input {
+      width: 100%;
+      min-width: 0;
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    .panel-head { display: flex; align-items: start; justify-content: space-between; gap: 15px; margin-bottom: 13px; }
+    .chart { min-height: 200px; }
+    .chart svg { display: block; width: 100%; height: 230px; overflow: visible; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--muted); font-size: .82rem; }
+    .legend span::before { display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 50%; background: var(--green); content: ""; }
+    .bar-list { display: grid; gap: 10px; margin-top: 10px; }
+    .bar-row { display: grid; grid-template-columns: minmax(115px, 200px) 1fr minmax(72px, auto); align-items: center; gap: 10px; }
+    .bar-label { overflow: hidden; color: #34473e; text-overflow: ellipsis; white-space: nowrap; font-size: .88rem; }
+    .bar-track { height: 11px; overflow: hidden; border-radius: 10px; background: #edf2ed; }
+    .bar { height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, var(--green), var(--green-2)); }
+    .bar-value { min-width: 72px; text-align: right; font-size: .84rem; font-variant-numeric: tabular-nums; }
+    .mix-row { display: grid; grid-template-columns: 125px 1fr 150px; align-items: center; gap: 10px; margin: 12px 0; }
+    .mix-track { display: flex; height: 13px; overflow: hidden; border-radius: 8px; background: #edf2ed; }
+    .mix-fill { min-width: 2px; background: var(--green); }
+    .mix-row:nth-child(3n) .mix-fill { background: var(--navy); }
+    .mix-row:nth-child(4n) .mix-fill { background: var(--amber); }
+    .mix-label, .mix-value { font-size: .88rem; }
+    .mix-value { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+    th, td { padding: 10px 9px; border-bottom: 1px solid var(--line); text-align: right; font-size: .86rem; }
+    th { color: var(--muted); font-size: .78rem; font-weight: 650; }
+    th:first-child, td:first-child { text-align: left; }
+    tbody tr:hover { background: #f7faf7; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: .77rem; }
+    .risk-high { background: #fae8e4; color: #8d3023; }
+    .risk-watch { background: #fbf0dd; color: #805415; }
+    .risk-normal { background: #e5f2e9; color: #285f43; }
+    .risk-low { background: #edf0f2; color: #566570; }
+    .callout { padding: 13px 15px; border-left: 3px solid var(--green); border-radius: 7px; background: #f3f8f4; color: #40564a; font-size: .88rem; }
+    .empty, .error { padding: 16px; border-radius: 10px; background: #f5f7f4; color: var(--muted); }
+    .error { background: #fff1ed; color: #842b1c; }
+    details { margin-top: 12px; color: var(--muted); font-size: .83rem; }
+    summary { cursor: pointer; color: #385247; }
+    footer { max-width: 1200px; margin: 0 auto; padding: 0 20px 35px; color: var(--muted); font-size: .84rem; }
+    footer a { color: var(--green); }
+    @media (max-width: 820px) {
+      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr 1fr; }
+      .bar-row { grid-template-columns: minmax(90px, 140px) 1fr auto; }
+      .panel { padding: 16px; }
+    }
+    @media (max-width: 480px) {
+      header { padding: 32px 20px 25px; }
+      main { padding: 0 13px; }
+      .cards { gap: 9px; }
+      .card { padding: 13px; }
+      .controls { grid-template-columns: 1fr; }
+      .mix-row { grid-template-columns: 90px 1fr 92px; gap: 7px; }
+      .mix-row .mix-value { font-size: .76rem; }
+      .section-title { display: block; }
+      .panel-head { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">OLIST · BRAZILIAN E-COMMERCE · BUSINESS REVIEW</div>
+    <h1>商業營運分析</h1>
+    <p>從營收與成長、品類組合、顧客回購、付款方式、配送履約到賣家風險，整理 Olist 公開交易資料中的營運訊號。</p>
+    <div class="period-note" id="period-note">正在載入分析資料…</div>
+  </header>
+  <nav aria-label="報告章節">
+    <a href="#overview">營運總覽</a><a href="#trend">趨勢</a><a href="#category">品類</a>
+    <a href="#customer">顧客</a><a href="#payments">付款</a><a href="#delivery">物流</a>
+    <a href="#geography">區域／城市</a><a href="#seller">賣家</a>
+  </nav>
+  <main id="report">
+    <div id="load-error" hidden></div>
+    <section id="overview">
+      <div class="section-title"><div><h2>營運總覽</h2><div class="hint">期間篩選會同步更新可分月彙總的營運分析</div></div></div>
+      <div class="controls">
+        <div><label for="start-month">開始月份</label><select id="start-month"></select></div>
+        <div><label for="end-month">結束月份</label><select id="end-month"></select></div>
+        <div><label for="city-state">區域分析州別</label><select id="city-state"><option value="">全部州別</option></select></div>
+      </div>
+      <div class="cards">
+        <article class="card"><div class="card-label">訂單</div><div class="metric" id="kpi-orders">—</div><div class="metric-note" id="kpi-items"></div></article>
+        <article class="card"><div class="card-label">商品金額（BRL）</div><div class="metric" id="kpi-revenue">—</div><div class="metric-note">依訂單商品明細價格加總</div></article>
+        <article class="card"><div class="card-label">平均客單價（BRL）</div><div class="metric" id="kpi-aov">—</div><div class="metric-note">商品金額 ÷ 訂單數</div></article>
+        <article class="card"><div class="card-label">新客</div><div class="metric" id="kpi-new-buyers">—</div><div class="metric-note">首次下單月份落於所選期間</div></article>
+        <article class="card"><div class="card-label">按時／提前送達率</div><div class="metric" id="kpi-on-time">—</div><div class="metric-note">只以有送達與預計日期的已送達訂單為分母</div></article>
+        <article class="card"><div class="card-label">平均評論分數</div><div class="metric" id="kpi-review">—</div><div class="metric-note" id="kpi-review-count"></div></article>
+        <article class="card"><div class="card-label">平均運費占商品金額</div><div class="metric" id="kpi-freight">—</div><div class="metric-note" id="kpi-freight-value"></div></article>
+        <article class="card"><div class="card-label">全期間顧客回購率</div><div class="metric" id="kpi-repeat">—</div><div class="metric-note" id="kpi-repeat-count"></div></article>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>管理摘要</h3><div class="hint">依目前選取期間自動計算；不代表因果關係或目標達成判定</div></div></div>
+        <div id="executive-summary" class="callout"></div>
+      </div>
+    </section>
+
+    <section id="trend">
+      <div class="section-title"><div><h2>營收與需求趨勢</h2><div class="hint">按購買月份統計；營收為商品明細價，不包含運費</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>月營收</h3><div class="hint">商品金額；滑過資料點查看月別金額</div></div></div>
+          <div id="revenue-chart" class="chart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>月訂單與新客</h3><div class="hint">新客按顧客唯一識別碼的首次購買月份計算</div></div></div>
+          <div id="orders-chart" class="chart"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>同期年增</h3><div class="hint" id="yoy-caption">找出所選期間內最新且有去年同期資料的月份</div></div></div>
+        <div id="yoy-result" class="callout"></div>
+      </div>
+    </section>
+
+    <section id="category">
+      <div class="section-title"><div><h2>品類組合與集中度</h2><div class="hint">品類金額按商品價格計；每筆商品項目依商品主檔分類</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>品類營收排名</h3><div class="hint">切換最高／最低商品金額</div></div>
+            <select id="category-direction" aria-label="品類排名方向" style="max-width:150px"><option value="top">最高 10 名</option><option value="bottom">最低 10 名</option></select>
+          </div>
+          <div id="category-bars" class="bar-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>品類累積營收</h3><div class="hint">Pareto 集中度，用於辨認主要收入來源</div></div></div>
+          <div id="pareto" class="bar-list"></div>
+          <div id="pareto-note" class="callout" style="margin-top:15px"></div>
+          <div class="small" id="category-count" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="customer">
+      <div class="section-title"><div><h2>顧客回購與價值分群</h2><div class="hint">顧客以 customer_unique_id 去重；RFM 與客單分組是資料全期間快照，不隨月份篩選</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>RFM 顧客分群</h3><div class="hint" id="rfm-asof"></div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>分群</th><th>顧客數</th><th>營收占比</th><th>回購顧客</th></tr></thead><tbody id="rfm-rows"></tbody></table></div>
+          <details><summary>查看 RFM 方法與分群規則</summary>
+            <p>R（最近購買）以報告資料截止日計算，越近期分數越高；F（全期間訂單數）及 M（全期間商品金額）分別依顧客分布的五分位數給分。分位點遇到大量相同值時可能重疊，因此實際分群人數不保證各占 20%。分群標籤是規則分類，不是預測模型。</p>
+          </details>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>顧客平均客單價與回購</h3><div class="hint">以每位顧客的期間商品金額 ÷ 期間訂單數分組</div></div></div>
+          <div id="aov-buckets" class="bar-list"></div>
+          <div class="small" style="margin-top:12px">回購率＝期間內至少下單 2 次的顧客數 ÷ 該消費層級顧客數。</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="payments">
+      <div class="section-title"><div><h2>付款與交易結構</h2><div class="hint">金額按付款明細加總；同筆訂單可能有多筆付款紀錄</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>付款方式金額占比</h3><div class="hint">各付款類型金額及其占總付款金額比例</div></div></div>
+          <div id="payment-mix"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>付款方式明細</h3><div class="hint">分期平均以付款紀錄為單位</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>付款方式</th><th>付款金額</th><th>金額占比</th><th>付款筆數</th><th>平均分期</th></tr></thead><tbody id="payment-rows"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="delivery">
+      <div class="section-title"><div><h2>配送履約與顧客體驗</h2><div class="hint">「未完成／日期缺漏」不納入按時率分母；延遲率另以全部訂單為分母</div></div></div>
+      <div class="cards">
+        <article class="card"><div class="card-label">按時／提前</div><div class="metric" id="delivery-ontime">—</div><div class="metric-note">占可判斷已送達訂單</div></article>
+        <article class="card"><div class="card-label">延遲訂單</div><div class="metric" id="delivery-delayed">—</div><div class="metric-note" id="delivery-delay-rate"></div></article>
+        <article class="card"><div class="card-label">平均延遲天數</div><div class="metric" id="delivery-delay-days">—</div><div class="metric-note">只計算晚於預計日期的已送達訂單</div></article>
+        <article class="card"><div class="card-label">平均配送天數</div><div class="metric" id="delivery-days">—</div><div class="metric-note">下單至顧客收貨</div></article>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>各州配送表現</h3><div class="hint">按延遲率排序；低樣本州的百分比需審慎解讀</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>州</th><th>訂單</th><th>可判斷送達</th><th>延遲訂單</th><th>延遲率</th><th>平均配送天數</th></tr></thead><tbody id="state-delivery-rows"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>評論訊號</h3><div class="hint">低分評論定義為 1–2 分</div></div></div>
+          <div id="review-bars" class="bar-list"></div>
+          <div class="callout" id="review-note" style="margin-top:14px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="geography">
+      <div class="section-title"><div><h2>區域與城市機會</h2><div class="hint">州別篩選只套用於本區，避免混淆其他全國指標</div></div></div>
+      <div class="controls" style="grid-template-columns:minmax(0,260px) minmax(0,260px)">
+        <div><label for="city-state-local">州別篩選</label><select id="city-state-local"><option value="">全部州別</option></select></div>
+        <div><label for="city-sort">城市排序</label><select id="city-sort"><option value="revenue">商品金額</option><option value="orders">訂單數</option><option value="aov">平均客單價</option><option value="late">延遲率</option></select></div>
+      </div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>州別商品金額排名</h3><div class="hint">依目前期間篩選</div></div></div>
+          <div id="state-bars" class="bar-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>城市營運明細</h3><div class="hint" id="city-count"></div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>城市</th><th>訂單</th><th>商品項目</th><th>平均客單價</th><th>延遲率</th><th>平均評論</th></tr></thead><tbody id="city-rows"></tbody></table></div>
+          <div id="city-page" class="small" style="margin-top:10px"></div>
+          <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:10px"><button id="city-previous" type="button">上一頁</button><button id="city-next" type="button">下一頁</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="seller">
+      <div class="section-title"><div><h2>賣家履約風險</h2><div class="hint">全期間快照；風險標籤是透明的初步篩查規則，不是因果判定</div></div></div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>需關注賣家</h3><div class="hint">至少 10 筆可判斷的已送達訂單才套用延遲／評分風險門檻</div></div></div>
+        <div id="seller-summary" class="callout" style="margin-bottom:13px"></div>
+        <div class="table-wrap"><table><thead><tr><th>賣家 ID</th><th>風險</th><th>訂單</th><th>已送達樣本</th><th>延遲率</th><th>平均評論</th><th>商品金額</th></tr></thead><tbody id="seller-rows"></tbody></table></div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    資料來源：<a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce" rel="noreferrer">Brazilian E-Commerce Public Dataset by Olist</a>。
+    來源資料標示為 CC BY-NC-SA 4.0；本頁為彙總改作。金額均以 BRL 表示。商品金額不含運費、退款或利潤，不代表公司淨營收。
+    <div id="data-quality" style="margin-top:7px"></div>
+  </footer>
+  <script>
+    const numberFormat = new Intl.NumberFormat("zh-TW");
+    const currencyFormat = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+    const percentFormat = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFractionDigits: 1 });
+    const decimalFormat = new Intl.NumberFormat("zh-TW", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+    const pageSize = 50;
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    let report;
+    let cityDataPromise;
+    let cityPage = 0;
+
+    function selectedMonths() {
+      const start = document.getElementById("start-month").value;
+      const end = document.getElementById("end-month").value;
+      return report.period.months.filter((month) => month >= start && month <= end);
+    }
+
+    function sumSeries(series, months = selectedMonths()) {
+      const allowed = new Set(months);
+      const result = {};
+      for (const row of series) {
+        if (!allowed.has(row.month)) continue;
+        for (const [key, value] of Object.entries(row)) {
+          if (key === "month") continue;
+          result[key] = (result[key] || 0) + value;
+        }
+      }
+      return result;
+    }
+
+    function sumRows(rows, months = selectedMonths()) {
+      return sumSeries(rows, months);
+    }
+
+    function el(tag, text, className) {
+      const node = document.createElement(tag);
+      if (text !== undefined) node.textContent = text;
+      if (className) node.className = className;
+      return node;
+    }
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+
+    function cell(row, value, first = false) {
+      row.append(el("td", value, first ? "first-cell" : ""));
+    }
+
+    function money(cents) {
+      return currencyFormat.format((cents || 0) / 100);
+    }
+
+    function pct(value) {
+      return value === null || value === undefined ? "—" : percentFormat.format(value);
+    }
+
+    function average(sum, count) {
+      return count ? sum / count : null;
+    }
+
+    function activeCategoryRows() {
+      return report.categories.map((category) => ({
+        name: category.name,
+        ...sumRows(category.series),
+      })).filter((category) => category.revenue_cents > 0);
+    }
+
+    function appendBar(container, label, value, maximum, valueText, color) {
+      const row = el("div", undefined, "bar-row");
+      row.append(el("div", label, "bar-label"));
+      const track = el("div", undefined, "bar-track");
+      const bar = el("div", undefined, "bar");
+      bar.style.width = `${Math.max(value > 0 ? 1 : 0, value / Math.max(1, maximum) * 100)}%`;
+      if (color) bar.style.background = color;
+      track.append(bar);
+      row.append(track, el("div", valueText, "bar-value"));
+      container.append(row);
+    }
+
+    function drawLineChart(containerId, rows, metric, color, formatter) {
+      const container = document.getElementById(containerId);
+      container.replaceChildren();
+      if (!rows.length) {
+        container.append(el("div", "此期間沒有可顯示的資料。", "empty"));
+        return;
+      }
+      const values = rows.map((row) => row[metric] || 0);
+      const max = Math.max(...values, 1);
+      const svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", "0 0 720 230");
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", `${metric} 月趨勢`);
+      const left = 62, right = 12, top = 16, bottom = 39;
+      const width = 720 - left - right, height = 230 - top - bottom;
+      for (let i = 0; i <= 4; i++) {
+        const y = top + height * i / 4;
+        const grid = document.createElementNS(SVG_NS, "line");
+        grid.setAttribute("x1", left); grid.setAttribute("x2", 720 - right);
+        grid.setAttribute("y1", y); grid.setAttribute("y2", y);
+        grid.setAttribute("stroke", "#e8eee8");
+        svg.append(grid);
+        const label = document.createElementNS(SVG_NS, "text");
+        label.setAttribute("x", left - 8); label.setAttribute("y", y + 4);
+        label.setAttribute("text-anchor", "end"); label.setAttribute("fill", "#748178");
+        label.setAttribute("font-size", "10");
+        label.textContent = formatter(max * (4 - i) / 4);
+        svg.append(label);
+      }
+      const coords = rows.map((row, i) => ({
+        x: rows.length === 1 ? left + width / 2 : left + width * i / (rows.length - 1),
+        y: top + height * (1 - (row[metric] || 0) / max),
+      }));
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute("d", coords.map((point, i) => `${i ? "L" : "M"} ${point.x} ${point.y}`).join(" "));
+      path.setAttribute("fill", "none"); path.setAttribute("stroke", color);
+      path.setAttribute("stroke-width", "3"); path.setAttribute("stroke-linejoin", "round");
+      svg.append(path);
+      for (let i = 0; i < coords.length; i++) {
+        const point = document.createElementNS(SVG_NS, "circle");
+        point.setAttribute("cx", coords[i].x); point.setAttribute("cy", coords[i].y);
+        point.setAttribute("r", rows.length > 18 ? "2.5" : "4");
+        point.setAttribute("fill", color);
+        const title = document.createElementNS(SVG_NS, "title");
+        title.textContent = `${rows[i].month}: ${formatter(values[i])}`;
+        point.append(title); svg.append(point);
+      }
+      const stride = Math.max(1, Math.ceil(rows.length / 8));
+      rows.forEach((row, i) => {
+        if (i % stride !== 0 && i !== rows.length - 1) return;
+        const label = document.createElementNS(SVG_NS, "text");
+        label.setAttribute("x", coords[i].x); label.setAttribute("y", 216);
+        label.setAttribute("text-anchor", "middle"); label.setAttribute("fill", "#748178");
+        label.setAttribute("font-size", "10"); label.textContent = row.month;
+        svg.append(label);
+      });
+      container.append(svg);
+    }
+
+    function renderOverview(monthRows) {
+      const total = sumRows(monthRows);
+      const validDelivery = total.delivered || 0;
+      const reviewAverage = average(total.review_score_sum, total.review_count);
+      const freightShare = total.revenue_cents
+        ? total.freight_cents / total.revenue_cents
+        : null;
+      const buyerTotal = report.rfm.segments.reduce((sum, item) => sum + item.customers, 0);
+      const repeatTotal = report.rfm.segments.reduce((sum, item) => sum + item.repeat_customers, 0);
+      const repeatRate = buyerTotal ? repeatTotal / buyerTotal : null;
+      setText("kpi-orders", numberFormat.format(total.orders || 0));
+      setText("kpi-items", `${numberFormat.format(total.items || 0)} 商品項目`);
+      setText("kpi-revenue", money(total.revenue_cents));
+      setText("kpi-aov", money((total.revenue_cents || 0) / Math.max(1, total.orders || 0)));
+      setText("kpi-new-buyers", numberFormat.format(total.new_buyers || 0));
+      setText("kpi-on-time", pct(validDelivery ? total.on_time / validDelivery : null));
+      setText("kpi-review", reviewAverage === null ? "—" : decimalFormat.format(reviewAverage));
+      setText("kpi-review-count", `${numberFormat.format(total.review_count || 0)} 則有效評論`);
+      setText("kpi-freight", pct(freightShare));
+      setText("kpi-freight-value", money(total.freight_cents));
+      setText("kpi-repeat", pct(repeatRate));
+      setText("kpi-repeat-count", `${numberFormat.format(repeatTotal)} / ${numberFormat.format(buyerTotal)} 位顧客，全期間`);
+
+      const selectedLabel = selectedMonths();
+      const states = report.states.map((state) => ({ state: state.state, ...sumRows(state.series) }))
+        .sort((a, b) => b.revenue_cents - a.revenue_cents);
+      const categories = activeCategoryRows().sort((a, b) => b.revenue_cents - a.revenue_cents);
+      const topState = states[0];
+      const topCategory = categories[0];
+      const lateRate = total.orders ? (total.delayed || 0) / total.orders : 0;
+      const summary = `所選期間共 ${numberFormat.format(total.orders || 0)} 筆訂單，商品金額 ${money(total.revenue_cents)}、平均客單 ${money((total.revenue_cents || 0) / Math.max(1, total.orders || 0))}。` +
+        (topState ? ` ${topState.state} 為最大州別市場（商品金額占 ${pct(topState.revenue_cents / Math.max(1, total.revenue_cents || 0))}）。` : "") +
+        (topCategory ? ` ${topCategory.name} 為最高商品金額品類。` : "") +
+        ` 可判斷已送達訂單的按時／提前率為 ${pct(validDelivery ? total.on_time / validDelivery : null)}；全部訂單中 ${pct(lateRate)} 被判定為延遲。`;
+      setText("executive-summary", summary);
+      setText("period-note", `${report.source} · ${selectedLabel[0]} 至 ${selectedLabel[selectedLabel.length - 1]} · 資料截止日 ${report.rfm.as_of}`);
+    }
+
+    function renderTrend(monthRows) {
+      drawLineChart("revenue-chart", monthRows, "revenue_cents", "#20664c", (value) => money(value));
+      drawLineChart("orders-chart", monthRows, "orders", "#344f65", (value) => numberFormat.format(value));
+      const available = new Map(report.period.months.map((month) => [month, month]));
+      const comparable = monthRows.filter((row) => {
+        const [year, month] = row.month.split("-").map(Number);
+        return available.has(`${year - 1}-${String(month).padStart(2, "0")}`);
+      });
+      const latest = comparable[comparable.length - 1];
+      const result = document.getElementById("yoy-result");
+      if (!latest) {
+        result.textContent = "所選期間找不到去年同期月份，無法計算年增。";
+        return;
+      }
+      const [year, month] = latest.month.split("-").map(Number);
+      const priorMonth = `${year - 1}-${String(month).padStart(2, "0")}`;
+      const currentRevenue = latest.revenue_cents || 0;
+      const priorRevenue = sumRows(report.monthly, [priorMonth]).revenue_cents || 0;
+      if (!priorRevenue) {
+        result.textContent = `${latest.month} 找不到非零去年同期商品金額，無法計算年增。`;
+        return;
+      }
+      result.textContent = `${latest.month} 商品金額年增 ${pct(currentRevenue / priorRevenue - 1)}：${money(currentRevenue)}，去年同期 ${money(priorRevenue)}。這是名目金額比較，沒有調整通膨、促銷或資料完整性。`;
+    }
+
+    function renderCategories() {
+      const categories = activeCategoryRows().sort((a, b) => a.revenue_cents - b.revenue_cents);
+      const top = categories.slice().reverse();
+      const direction = document.getElementById("category-direction").value;
+      const rows = (direction === "top" ? top.slice(0, 10) : categories.slice(0, 10));
+      const bars = document.getElementById("category-bars");
+      bars.replaceChildren();
+      const max = Math.max(1, ...rows.map((row) => row.revenue_cents));
+      for (const row of rows) appendBar(bars, row.name, row.revenue_cents, max, money(row.revenue_cents));
+
+      const pareto = document.getElementById("pareto");
+      pareto.replaceChildren();
+      let cumulative = 0;
+      let countTo80 = 0;
+      const total = categories.reduce((sum, category) => sum + category.revenue_cents, 0);
+      const topRows = top.slice(0, 10);
+      for (const row of topRows) {
+        cumulative += row.revenue_cents;
+        countTo80++;
+        appendBar(pareto, `${countTo80}. ${row.name}`, cumulative, total, pct(total ? cumulative / total : 0), "#344f65");
+      }
+      while (countTo80 < top.length && total && cumulative / total < 0.8) {
+        const row = top[countTo80++];
+        cumulative += row.revenue_cents;
+        appendBar(pareto, `${countTo80}. ${row.name}`, cumulative, total, pct(cumulative / total), "#344f65");
+      }
+      setText("pareto-note", total
+        ? `前 ${countTo80} 個品類累積占所選期間品類商品金額 ${pct(cumulative / total)}。集中度只按目前資料分類與篩選計算。`
+        : "所選期間沒有品類商品金額。");
+      setText("category-count", `有銷售的品類：${numberFormat.format(categories.length)} 個`);
+    }
+
+    function renderCustomers() {
+      const segments = report.rfm.segments;
+      const totalRevenue = segments.reduce((sum, item) => sum + item.revenue_cents, 0);
+      const rfmRows = document.getElementById("rfm-rows");
+      rfmRows.replaceChildren();
+      for (const segment of segments.slice().sort((a, b) => b.revenue_cents - a.revenue_cents)) {
+        const row = document.createElement("tr");
+        cell(row, segment.name, true);
+        cell(row, numberFormat.format(segment.customers));
+        cell(row, pct(totalRevenue ? segment.revenue_cents / totalRevenue : 0));
+        cell(row, numberFormat.format(segment.repeat_customers));
+        rfmRows.append(row);
+      }
+      setText("rfm-asof", `快照日期 ${report.rfm.as_of} · 顧客數 ${numberFormat.format(segments.reduce((sum, item) => sum + item.customers, 0))}`);
+
+      const buckets = document.getElementById("aov-buckets");
+      buckets.replaceChildren();
+      const max = Math.max(1, ...report.aov_buckets.map((item) => item.customers));
+      for (const item of report.aov_buckets) {
+        const rate = item.customers ? item.repeat_customers / item.customers : 0;
+        appendBar(buckets, item.name, item.customers, max, `${pct(rate)} · ${numberFormat.format(item.customers)} 人`);
+      }
+    }
+
+    function renderPayments(monthRows) {
+      const totals = report.payments.map((payment) => ({
+        type: payment.type,
+        ...sumRows(payment.series),
+      })).filter((payment) => payment.payment_count > 0)
+        .sort((a, b) => b.payment_cents - a.payment_cents);
+      const paymentTotal = totals.reduce((sum, item) => sum + item.payment_cents, 0);
+      const mix = document.getElementById("payment-mix");
+      const tbody = document.getElementById("payment-rows");
+      mix.replaceChildren(); tbody.replaceChildren();
+      for (const item of totals) {
+        const share = paymentTotal ? item.payment_cents / paymentTotal : 0;
+        const row = el("div", undefined, "mix-row");
+        row.append(el("div", item.type, "mix-label"));
+        const track = el("div", undefined, "mix-track");
+        const fill = el("div", undefined, "mix-fill");
+        fill.style.width = `${share * 100}%`;
+        track.append(fill);
+        row.append(track, el("div", `${money(item.payment_cents)} · ${pct(share)}`, "mix-value"));
+        mix.append(row);
+
+        const detail = document.createElement("tr");
+        cell(detail, item.type, true);
+        cell(detail, money(item.payment_cents));
+        cell(detail, pct(share));
+        cell(detail, numberFormat.format(item.payment_count));
+        cell(detail, decimalFormat.format(item.installment_sum / Math.max(1, item.payment_count)));
+        tbody.append(detail);
+      }
+      const metrics = sumRows(monthRows);
+      const note = el("div", `平均分期 ${decimalFormat.format((metrics.installment_sum || 0) / Math.max(1, metrics.payment_count || 0))} 期／付款紀錄 · 共 ${numberFormat.format(metrics.payment_count || 0)} 筆付款。付款金額合計不等於商品金額；兩者口徑不同。`, "callout");
+      mix.append(note);
+    }
+
+    function renderDelivery(monthRows) {
+      const total = sumRows(monthRows);
+      const delivered = total.delivered || 0;
+      setText("delivery-ontime", pct(delivered ? total.on_time / delivered : null));
+      setText("delivery-delayed", numberFormat.format(total.delayed || 0));
+      setText("delivery-delay-rate", `${pct(total.orders ? (total.delayed || 0) / total.orders : null)} · 占全部訂單`);
+      setText("delivery-delay-days", decimalFormat.format((total.delay_days || 0) / Math.max(1, total.delayed || 0) / 100) + " 天");
+      setText("delivery-days", decimalFormat.format((total.delivery_days || 0) / Math.max(1, delivered) / 100) + " 天");
+
+      const states = report.states.map((state) => ({ state: state.state, ...sumRows(state.series) }))
+        .sort((a, b) => (b.delayed / Math.max(1, b.delivered)) - (a.delayed / Math.max(1, a.delivered)));
+      const body = document.getElementById("state-delivery-rows");
+      body.replaceChildren();
+      for (const state of states) {
+        const row = document.createElement("tr");
+        cell(row, state.state, true);
+        cell(row, numberFormat.format(state.orders || 0));
+        cell(row, numberFormat.format(state.delivered || 0));
+        cell(row, numberFormat.format(state.delayed || 0));
+        cell(row, pct(state.delivered ? state.delayed / state.delivered : null));
+        cell(row, state.delivered ? `${decimalFormat.format(state.delivery_days / state.delivered / 100)} 天` : "—");
+        body.append(row);
+      }
+
+      const review = document.getElementById("review-bars");
+      review.replaceChildren();
+      const averageScore = average(total.review_score_sum, total.review_count);
+      const lowRate = total.review_count ? total.low_review_count / total.review_count : 0;
+      appendBar(review, "平均評論分數", averageScore || 0, 5, averageScore === null ? "—" : `${decimalFormat.format(averageScore)} / 5`);
+      appendBar(review, "低分評論（1–2）", lowRate, 1, pct(lowRate), "#b84c3c");
+      setText("review-note", `${numberFormat.format(total.review_count || 0)} 則評論中有 ${numberFormat.format(total.low_review_count || 0)} 則低分。此為描述性關聯分析，不可單憑評論分數推斷延遲的因果影響。`);
+    }
+
+    function renderGeography() {
+      const selectedState = document.getElementById("city-state-local").value;
+      const stateRows = report.states.map((state) => ({
+        state: state.state,
+        ...sumRows(state.series),
+      })).sort((a, b) => b.revenue_cents - a.revenue_cents);
+      const stateBars = document.getElementById("state-bars");
+      stateBars.replaceChildren();
+      const maxRevenue = Math.max(1, ...stateRows.map((state) => state.revenue_cents));
+      for (const state of stateRows.slice(0, 12)) {
+        appendBar(stateBars, state.state, state.revenue_cents, maxRevenue, money(state.revenue_cents));
+      }
+
+      const tbody = document.getElementById("city-rows");
+      tbody.replaceChildren();
+      if (!report.cities) {
+        tbody.append(el("tr", "捲動至城市分析時載入詳細城市資料…", "empty"));
+        document.getElementById("city-previous").disabled = true;
+        document.getElementById("city-next").disabled = true;
+        return;
+      }
+      let cities = report.cities
+        .filter((city) => !selectedState || city.state === selectedState)
+        .map((city) => ({
+          city: city.city,
+          state: city.state,
+          ...sumRows(city.series),
+        })).filter((city) => city.orders > 0);
+      const sort = document.getElementById("city-sort").value;
+      cities.sort((a, b) => {
+        if (sort === "orders") return b.orders - a.orders;
+        if (sort === "aov") return b.revenue_cents / Math.max(1, b.orders) - a.revenue_cents / Math.max(1, a.orders);
+        if (sort === "late") return b.delayed / Math.max(1, b.delivered) - a.delayed / Math.max(1, a.delivered);
+        return b.revenue_cents - a.revenue_cents;
+      });
+      const start = cityPage * pageSize;
+      for (const city of cities.slice(start, start + pageSize)) {
+        const row = document.createElement("tr");
+        cell(row, `${city.city} · ${city.state}`, true);
+        cell(row, numberFormat.format(city.orders));
+        cell(row, numberFormat.format(city.items));
+        cell(row, money(city.revenue_cents / Math.max(1, city.orders)));
+        cell(row, pct(city.delivered ? city.delayed / city.delivered : null));
+        cell(row, city.review_count ? decimalFormat.format(city.review_score_sum / city.review_count) : "—");
+        tbody.append(row);
+      }
+      setText("city-count", `共 ${numberFormat.format(cities.length)} 個城市`);
+      setText("city-page", cities.length ? `顯示 ${numberFormat.format(start + 1)}–${numberFormat.format(Math.min(start + pageSize, cities.length))}` : "沒有符合條件的城市");
+      document.getElementById("city-previous").disabled = cityPage === 0;
+      document.getElementById("city-next").disabled = start + pageSize >= cities.length;
+    }
+
+    function loadCityData() {
+      if (cityDataPromise) return cityDataPromise;
+      cityDataPromise = (async () => {
+        const response = await fetch("./data/cities.json");
+        if (!response.ok) throw new Error(`城市明細載入失敗：HTTP ${response.status}`);
+        const payload = await response.json();
+        report.cities = payload.cities;
+        renderGeography();
+      })().catch((error) => {
+        cityDataPromise = undefined;
+        document.querySelectorAll("#geography .error").forEach((node) => node.remove());
+        const message = document.createElement("div");
+        message.className = "error";
+        message.textContent = `${error.message}。請確認 docs/data/cities.json 已產生。`;
+        const panel = document.querySelector("#geography .panel:last-child");
+        panel.prepend(message);
+      });
+      return cityDataPromise;
+    }
+
+    function renderSellers() {
+      const risks = report.sellers.filter((seller) => seller.risk === "High" || seller.risk === "Watch");
+      const high = risks.filter((seller) => seller.risk === "High").length;
+      setText("seller-summary", `${numberFormat.format(high)} 位高風險、${numberFormat.format(risks.length - high)} 位觀察賣家。門檻：可判斷送達樣本至少 10 筆；高風險為延遲率 >20% 或平均評分 ≤3.5，觀察為延遲率 >10% 或平均評分 <4。低於樣本門檻者不列在此表。`);
+      const tbody = document.getElementById("seller-rows");
+      tbody.replaceChildren();
+      for (const seller of risks.slice(0, 100)) {
+        const row = document.createElement("tr");
+        cell(row, seller.seller_id, true);
+        const badge = el("span", seller.risk, `pill ${seller.risk === "High" ? "risk-high" : "risk-watch"}`);
+        const riskCell = el("td"); riskCell.append(badge); row.append(riskCell);
+        cell(row, numberFormat.format(seller.orders));
+        cell(row, numberFormat.format(seller.delivered_orders));
+        cell(row, pct(seller.late_rate));
+        cell(row, seller.average_review_score === null ? "—" : decimalFormat.format(seller.average_review_score));
+        cell(row, money(seller.revenue_cents));
+        tbody.append(row);
+      }
+      if (!risks.length) tbody.append(el("tr", "此期間沒有符合目前篩查門檻的賣家。", "empty"));
+    }
+
+    function render() {
+      const first = document.getElementById("start-month");
+      const last = document.getElementById("end-month");
+      if (first.value > last.value) last.value = first.value;
+      if (last.value < first.value) first.value = last.value;
+      const selected = new Set(selectedMonths());
+      const months = report.monthly.filter((row) => selected.has(row.month));
+      renderOverview(months);
+      renderTrend(months);
+      renderCategories();
+      renderCustomers();
+      renderPayments(months);
+      renderDelivery(months);
+      renderGeography();
+      renderSellers();
+    }
+
+    async function start() {
+      const response = await fetch("./data/business_summary.json");
+      if (!response.ok) throw new Error(`商業分析資料載入失敗：HTTP ${response.status}`);
+      report = await response.json();
+      if (!report.monthly || !report.period || !report.states) {
+        throw new Error("商業分析資料格式不完整");
+      }
+      const start = document.getElementById("start-month");
+      const end = document.getElementById("end-month");
+      for (const month of report.period.months) {
+        start.append(new Option(month, month));
+        end.append(new Option(month, month));
+      }
+      start.value = report.period.start;
+      end.value = report.period.end;
+      const states = report.states.map((row) => row.state).sort();
+      for (const state of states) {
+        document.getElementById("city-state-local").append(new Option(state, state));
+      }
+      document.getElementById("data-quality").textContent =
+        `資料範圍 ${report.period.start}–${report.period.end}。清理流程有意篩選訂單、彙總地理資料並為顧客／賣家分群；指標口徑與限制請參閱專案 README。`;
+      render();
+      document.getElementById("report").hidden = false;
+    }
+
+    for (const id of ["start-month", "end-month", "category-direction"]) {
+      document.getElementById(id).addEventListener("change", render);
+    }
+    document.getElementById("city-state-local").addEventListener("change", () => { cityPage = 0; renderGeography(); });
+    document.getElementById("city-sort").addEventListener("change", () => { cityPage = 0; renderGeography(); });
+    document.getElementById("city-previous").addEventListener("click", () => { cityPage--; renderGeography(); });
+    document.getElementById("city-next").addEventListener("click", () => { cityPage++; renderGeography(); });
+    document.querySelector('a[href="#geography"]').addEventListener("click", loadCityData);
+    if ("IntersectionObserver" in window) {
+      const geographyObserver = new IntersectionObserver((entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          geographyObserver.disconnect();
+          loadCityData();
+        }
+      }, { rootMargin: "250px" });
+      geographyObserver.observe(document.getElementById("geography"));
+    }
+    start().catch((error) => {
+      const box = document.getElementById("load-error");
+      box.hidden = false;
+      box.className = "error";
+      box.textContent = `${error.message}。請重新產生 docs/data/business_summary.json，並以 HTTP 伺服器開啟此頁。`;
+    });
+  </script>
+</body>
+</html>

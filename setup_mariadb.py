@@ -1,18 +1,24 @@
 import os
 import re
 from pathlib import Path
-
 import pymysql
 from dotenv import load_dotenv
 
 load_dotenv()
 
-import import_to_mariadb
-
-
 BASE_DIR = Path(__file__).resolve().parent
 DB_DIR = BASE_DIR / "db"
 DATABASE_NAME = os.getenv("MARIADB_DATABASE", "olist_db")
+
+DB_CONFIG = {
+    "host": os.getenv("MARIADB_HOST", "localhost"),
+    "port": int(os.getenv("MARIADB_PORT", "3306")),
+    "user": os.getenv("MARIADB_USER", "root"),
+    "password": os.getenv("MARIADB_PASSWORD"),
+    "database": DATABASE_NAME,
+    "charset": "utf8mb4",
+}
+
 TABLE_SQL_FILES = [
     "category_translation.sql",
     "customers.sql",
@@ -25,69 +31,55 @@ TABLE_SQL_FILES = [
     "geolocation.sql",
 ]
 
-
-def validate_database_name(name: str) -> str:
-    if not re.fullmatch(r"[A-Za-z0-9_]+", name):
+def create_tables() -> None:
+    if not re.fullmatch(r"[A-Za-z0-9_]+", DATABASE_NAME):
         raise ValueError(
             "MARIADB_DATABASE must contain only letters, numbers, and underscores."
         )
-    return name
+    if not DB_CONFIG["password"]:
+        raise RuntimeError("請在 .env 或環境變數中設定 MARIADB_PASSWORD！")
 
+    server_config = DB_CONFIG.copy()
+    server_config.pop("database")
+    connection = pymysql.connect(**server_config)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{DATABASE_NAME}` "
+                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+        connection.commit()
+    finally:
+        connection.close()
 
-def connect_without_database():
-    config = import_to_mariadb.DB_CONFIG.copy()
-    config.pop("database", None)
-    return pymysql.connect(**config)
-
-
-def create_database() -> None:
-    database_name = validate_database_name(DATABASE_NAME)
-    connection = connect_without_database()
+    connection = pymysql.connect(**DB_CONFIG)
     try:
         cursor = connection.cursor()
         try:
-            cursor.execute(
-                f"CREATE DATABASE IF NOT EXISTS `{database_name}` "
-                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
-            )
+            for file_name in TABLE_SQL_FILES:
+                path = DB_DIR / file_name
+                if not path.is_file():
+                    raise FileNotFoundError(f"找不到 SQL 檔案: {path}")
+
+                raw_sql = path.read_text(encoding="utf-8")
+                statements = [stmt.strip() for stmt in raw_sql.split(";") if stmt.strip()]
+
+                for stmt in statements:
+                    cursor.execute(stmt)
+
+                print(f"Table 已就緒: {path.stem}")
+
             connection.commit()
         finally:
             cursor.close()
     finally:
         connection.close()
-    print(f"Database ready: {database_name}")
-
-
-def create_tables() -> None:
-    connection = import_to_mariadb.get_connection()
-    try:
-        for file_name in TABLE_SQL_FILES:
-            path = DB_DIR / file_name
-            if not path.is_file():
-                raise FileNotFoundError(f"Table SQL not found: {path}")
-            sql = path.read_text(encoding="utf-8").replace(
-                "CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", 1
-            )
-            cursor = connection.cursor()
-            try:
-                cursor.execute(sql)
-                connection.commit()
-            finally:
-                cursor.close()
-            print(f"Table ready: {path.stem}")
-    finally:
-        connection.close()
-
 
 def main() -> None:
-    print("Olist -> MariaDB database setup")
-    print("=" * 70)
-    print("This command does not delete databases, tables, or rows.")
-
-    create_database()
+    print(f"正在 '{DATABASE_NAME}' 資料庫中建立資料表...")
+    print("=" * 60)
     create_tables()
-    print("\nDatabase and tables are ready. Run import_to_mariadb.py to import data.")
-
+    print("\n所有 Data Tables 建立完成！")
 
 if __name__ == "__main__":
     main()
