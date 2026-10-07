@@ -7,6 +7,10 @@
 
 兩條流程共用原始 CSV 與 `clean_olist.py`。可以只選一條，也可以清理一次後，接著各自完成兩條流程。
 
+## 互動式商業分析網站
+
+[**查看完整互動式分析網站 →**](https://little-guang.github.io/olist_proj/)
+
 ## 專案結構
 
 ```text
