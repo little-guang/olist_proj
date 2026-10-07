@@ -1,5 +1,6 @@
 import csv
 import json
+import statistics
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
@@ -42,6 +43,12 @@ DELAY_BUCKETS = (
     ("late_1_3", "延遲 1–3 天"),
     ("late_4_7", "延遲 4–7 天"),
     ("late_8_plus", "延遲 8 天以上"),
+)
+PRICE_FREIGHT_SEGMENTS = (
+    ("low_price_low_freight", "低單價 × 低運費"),
+    ("low_price_high_freight", "低單價 × 高運費"),
+    ("high_price_low_freight", "高單價 × 低運費"),
+    ("high_price_high_freight", "高單價 × 高運費"),
 )
 
 
@@ -89,6 +96,8 @@ def public_series(months: list[str], data: dict[str, dict]) -> list[dict]:
 
 def build_dashboard_data() -> dict:
     customers: dict[str, dict] = {}
+    state_buyers: dict[str, set[str]] = defaultdict(set)
+    state_orders: dict[str, int] = defaultdict(int)
     for row in read_csv("customers_clean.csv"):
         city = row["customer_city"].strip() or "Unknown"
         state = row["customer_state"].strip().upper() or "?"
@@ -109,6 +118,10 @@ def build_dashboard_data() -> dict:
         )
         for row in read_csv("products_clean.csv")
     }
+    seller_states = {
+        row["seller_id"]: row["seller_state"].strip().upper() or "?"
+        for row in read_csv("sellers_clean.csv")
+    }
 
     groups: dict[str, dict] = {
         "all": defaultdict(dict),
@@ -119,6 +132,8 @@ def build_dashboard_data() -> dict:
     }
     buyer_profiles: dict[str, dict] = {}
     orders: dict[str, dict] = {}
+    active_sellers_by_state: dict[str, set[str]] = defaultdict(set)
+    same_state_item_count = 0
     monthly_buyers: dict[str, set[str]] = defaultdict(set)
     monthly_city_buyers: dict[tuple[str, str, str], set[str]] = defaultdict(set)
     demand_months: dict[str, dict] = defaultdict(
@@ -168,6 +183,8 @@ def build_dashboard_data() -> dict:
         demand_months[month]["hours"][purchased.hour] += 1
         demand_months[month]["weekdays"][purchased.weekday()] += 1
         monthly_buyers[month].add(customer["buyer_id"])
+        state_buyers[order["state"]].add(customer["buyer_id"])
+        state_orders[order["state"]] += 1
         monthly_city_buyers[(order["city"], order["state"], month)].add(
             customer["buyer_id"]
         )
@@ -265,12 +282,42 @@ def build_dashboard_data() -> dict:
     for (city, state, month), buyer_ids in monthly_city_buyers.items():
         groups["cities"][(city, state)][month]["buyers"] = len(buyer_ids)
 
+    item_prices: list[int] = []
+    item_freights: list[int] = []
+    for row in read_csv("order_items_clean.csv"):
+        item_prices.append(add_money(row["price"]))
+        item_freights.append(add_money(row["freight_value"]))
+    if not item_prices:
+        raise ValueError("No order items were found in the cleaned order-items CSV.")
+    price_median_cents = statistics.median(item_prices)
+    freight_median_cents = statistics.median(item_freights)
+    price_freight_months: dict[str, dict[str, dict]] = {
+        key: defaultdict(
+            lambda: {
+                "items": 0,
+                "orders": set(),
+                "revenue_cents": 0,
+                "freight_cents": 0,
+            }
+        )
+        for key, _ in PRICE_FREIGHT_SEGMENTS
+    }
     for row in read_csv("order_items_clean.csv"):
         order_id = row["order_id"]
         order = orders[order_id]
         category = products.get(row["product_id"], "unknown") or "unknown"
         price_cents = add_money(row["price"])
         freight_cents = add_money(row["freight_value"])
+        price_level = "high" if price_cents >= price_median_cents else "low"
+        freight_level = (
+            "high" if freight_cents >= freight_median_cents else "low"
+        )
+        segment_key = f"{price_level}_price_{freight_level}_freight"
+        price_freight_bucket = price_freight_months[segment_key][order["month"]]
+        price_freight_bucket["items"] += 1
+        price_freight_bucket["orders"].add(order_id)
+        price_freight_bucket["revenue_cents"] += price_cents
+        price_freight_bucket["freight_cents"] += freight_cents
         order["revenue_cents"] += price_cents
         buyer_profiles[order["buyer_id"]]["revenue_cents"] += price_cents
 
@@ -289,6 +336,9 @@ def build_dashboard_data() -> dict:
         category_orders[(category, order["month"])].add(order_id)
 
         seller_id = row["seller_id"]
+        seller_state = seller_states.get(seller_id, "?")
+        active_sellers_by_state[seller_state].add(seller_id)
+        same_state_item_count += int(seller_state == order["state"])
         order_sellers[order_id].add(seller_id)
         seller = seller_metrics[seller_id]
         seller["items"] += 1
@@ -503,6 +553,56 @@ def build_dashboard_data() -> dict:
             }
         )
 
+    public_price_freight_segments = [
+        {
+            "key": key,
+            "label": label,
+            "series": [
+                {
+                    "month": month,
+                    "items": price_freight_months[key][month]["items"],
+                    "orders": len(price_freight_months[key][month]["orders"]),
+                    "revenue_cents": price_freight_months[key][month][
+                        "revenue_cents"
+                    ],
+                    "freight_cents": price_freight_months[key][month][
+                        "freight_cents"
+                    ],
+                }
+                for month in months
+            ],
+        }
+        for key, label in PRICE_FREIGHT_SEGMENTS
+    ]
+    state_distribution = [
+        {
+            "state": state,
+            "orders": state_orders[state],
+            "customers": len(state_buyers[state]),
+            "active_sellers": len(active_sellers_by_state[state]),
+        }
+        for state in set(state_orders) | set(active_sellers_by_state)
+    ]
+    total_state_orders = sum(state_orders.values())
+    total_active_sellers = sum(
+        len(sellers) for sellers in active_sellers_by_state.values()
+    )
+    for state in state_distribution:
+        order_share = (
+            state["orders"] / total_state_orders if total_state_orders else 0
+        )
+        seller_share = (
+            state["active_sellers"] / total_active_sellers
+            if total_active_sellers
+            else 0
+        )
+        state["order_share"] = order_share
+        state["active_seller_share"] = seller_share
+        state["demand_seller_index"] = (
+            order_share / seller_share if seller_share else None
+        )
+    state_distribution.sort(key=lambda state: (-state["orders"], state["state"]))
+
     profiles = list(buyer_profiles.values())
     recency_values = sorted((reference_at - p["last_at"]).days for p in profiles)
     frequency_values = sorted(p["orders"] for p in profiles)
@@ -646,6 +746,24 @@ def build_dashboard_data() -> dict:
         "payments": public_payments,
         "demand": {"months": public_demand, "weekday_names": WEEKDAY_NAMES},
         "delivery_analysis": public_delivery_analysis,
+        "price_freight_analysis": {
+            "price_median_cents": price_median_cents,
+            "freight_median_cents": freight_median_cents,
+            "segments": public_price_freight_segments,
+        },
+        "geography_analysis": {
+            "same_state_item_share": (
+                same_state_item_count / all_totals["items"]
+                if all_totals["items"]
+                else 0
+            ),
+            "cross_state_item_share": (
+                1 - same_state_item_count / all_totals["items"]
+                if all_totals["items"]
+                else 0
+            ),
+            "states": state_distribution,
+        },
         "rfm": {
             "as_of": reference_at.date().isoformat(),
             "cutoffs": {

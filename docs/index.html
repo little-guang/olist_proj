@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Olist 巴西電商商業分析：營收、品類、顧客、物流、付款、城市與賣家風險。">
+  <meta name="description" content="Olist 巴西電商商業分析：營收、商品單價與運費、品類、顧客與賣家區域分布、物流、付款及賣家風險。">
   <title>Olist 商業營運分析</title>
   <style>
     :root {
@@ -40,6 +40,18 @@
     h1 { margin: 9px 0 8px; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.1; }
     header p { max-width: 790px; margin: 0; color: #d6e6dd; }
     .period-note { margin-top: 14px; color: #bdd6c8; font-size: .85rem; }
+    .repo-link {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 8px 13px;
+      border: 1px solid #b8d7c5;
+      border-radius: 8px;
+      color: #fff;
+      font-size: .88rem;
+      font-weight: 650;
+      text-decoration: none;
+    }
+    .repo-link:hover { background: #ffffff1a; }
     nav {
       position: sticky;
       z-index: 5;
@@ -155,12 +167,13 @@
   <header>
     <div class="eyebrow">OLIST · BRAZILIAN E-COMMERCE · BUSINESS REVIEW</div>
     <h1>商業營運分析</h1>
-    <p>從營收與成長、品類組合、顧客回購、付款方式、配送履約到賣家風險，整理 Olist 公開交易資料中的營運訊號。</p>
+    <p>從營收與成長、商品單價與運費結構、顧客回購、區域客源與賣家分布、付款方式、配送履約到賣家風險，整理 Olist 公開交易資料中的營運訊號。</p>
     <div class="period-note" id="period-note">正在載入分析資料…</div>
+    <a class="repo-link" href="https://github.com/little-guang/olist_proj" target="_blank" rel="noopener noreferrer">查看 GitHub 專案 ↗</a>
   </header>
   <nav aria-label="報告章節">
     <a href="#overview">營運總覽</a><a href="#trend">趨勢</a><a href="#demand">購買時段</a><a href="#category">品類</a>
-    <a href="#customer">顧客</a><a href="#payments">付款</a><a href="#delivery">物流</a>
+    <a href="#item-economics">單價／運費</a><a href="#customer">顧客</a><a href="#payments">付款</a><a href="#delivery">物流</a>
     <a href="#geography">區域／城市</a><a href="#seller">賣家</a>
   </nav>
   <main id="report">
@@ -218,6 +231,21 @@
           <div id="purchase-peak-note" class="callout" style="margin-top:14px"></div>
         </div>
       </div>
+    </section>
+
+    <section id="item-economics">
+      <div class="section-title"><div><h2>商品單價、運費與銷售結構</h2><div class="hint">依全資料商品項目單價與運費中位數切分；數值隨上方期間篩選更新</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>四種單價／運費組合的商品項目數</h3><div class="hint">比較訂單量、商品金額及運費占比</div></div></div>
+          <div id="price-freight-bars" class="bar-list"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>交易結構明細</h3><div class="hint">按商品項目單價中位數與運費中位數分組</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>組合</th><th>項目數</th><th>占比</th><th>訂單</th><th>平均單價</th><th>平均運費</th><th>運費／商品金額</th><th>商品金額</th></tr></thead><tbody id="price-freight-rows"></tbody></table></div>
+        </div>
+      </div>
+      <div id="price-freight-note" class="callout" style="margin-top:14px"></div>
     </section>
 
     <section id="category">
@@ -326,6 +354,18 @@
           <div style="display:flex;justify-content:flex-end;gap:7px;margin-top:10px"><button id="city-previous" type="button">上一頁</button><button id="city-next" type="button">下一頁</button></div>
         </div>
       </div>
+      <div class="section-title"><div><h2>顧客需求與賣家所在地分布</h2><div class="hint">全清理期間快照；比較顧客訂單所在州與至少成交一筆的賣家所在地</div></div></div>
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head"><div><h3>訂單需求最高的 8 個州</h3><div class="hint">顧客數為州內去重 customer_unique_id；賣家為本資料期內有成交者</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>州</th><th>訂單</th><th>顧客</th><th>訂單占比</th><th>活躍賣家</th><th>賣家占比</th><th>需求／賣家指數</th></tr></thead><tbody id="market-state-rows"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h3>需求相對賣家較集中的 5 個州</h3><div class="hint">只列至少 10 位活躍賣家；指數＝州訂單占比 ÷ 州活躍賣家占比</div></div></div>
+          <div class="table-wrap"><table><thead><tr><th>州</th><th>訂單</th><th>活躍賣家</th><th>訂單占比</th><th>賣家占比</th><th>指數</th></tr></thead><tbody id="market-gap-rows"></tbody></table></div>
+          <div id="market-distribution-note" class="callout" style="margin-top:14px"></div>
+        </div>
+      </div>
     </section>
 
     <section id="seller">
@@ -346,12 +386,12 @@
         <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="license noreferrer">Creative Commons 姓名標示－非商業性－相同方式分享 4.0 國際（CC BY-NC-SA 4.0）</a>。
       </p>
       <p>
-        本網站對資料進行了修改：篩選訂單期間、彙總地理資料、每筆訂單保留最新評論，並計算月趨勢、品類、顧客分群、物流與賣家等彙總分析。
+        本網站對資料進行了修改：篩選訂單期間、彙總地理資料、每筆訂單保留最新評論，並計算月趨勢、品類、單價與運費組合、顧客分群、顧客／賣家州別分布、物流與賣家等彙總分析。
         這些資料集衍生內容依 CC BY-NC-SA 4.0 分享，不得用於商業目的；再散布或改作時請標示原始來源、連結授權並說明修改。
         Olist 與 Kaggle 不代表認可或背書本網站。網站程式碼不屬於該資料集授權範圍。
       </p>
       <p>
-        金額均以 BRL 表示。商品金額是商品明細價格總和，不含運費、退款或利潤，不代表公司淨營收。
+        金額均以 BRL 表示。商品金額是商品明細價格總和，不含運費、退款、商品成本或利潤，不代表公司淨營收。單價／運費分組只能描述交易結構，不能判定「薄利多銷」；地理需求／賣家指數也不代表賣家產能或供需缺口。
       </p>
     </section>
     <div id="data-quality" style="margin-top:7px"></div>
@@ -359,6 +399,7 @@
   <script>
     const numberFormat = new Intl.NumberFormat("zh-TW");
     const currencyFormat = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+    const preciseCurrencyFormat = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const percentFormat = new Intl.NumberFormat("zh-TW", { style: "percent", maximumFractionDigits: 1 });
     const decimalFormat = new Intl.NumberFormat("zh-TW", { minimumFractionDigits: 1, maximumFractionDigits: 2 });
     const pageSize = 50;
@@ -407,6 +448,10 @@
 
     function money(cents) {
       return currencyFormat.format((cents || 0) / 100);
+    }
+
+    function preciseMoney(cents) {
+      return preciseCurrencyFormat.format((cents || 0) / 100);
     }
 
     function pct(value) {
@@ -575,6 +620,58 @@
       const peakHour = hours.indexOf(hourMax);
       const peakWeekday = weekdays.indexOf(weekdayMax);
       setText("purchase-peak-note", `尖峰時段為 ${String(peakHour).padStart(2, "0")}:00–${String(peakHour).padStart(2, "0")}:59（${numberFormat.format(hourMax)} 筆）；訂單最多的星期為${names[peakWeekday]}（${numberFormat.format(weekdayMax)} 筆）。`);
+    }
+
+    function renderPriceFreight() {
+      const segments = report.price_freight_analysis.segments.map((segment) => ({
+        ...segment,
+        ...sumRows(segment.series),
+      }));
+      const totalItems = segments.reduce((sum, segment) => sum + segment.items, 0);
+      const maxItems = Math.max(1, ...segments.map((segment) => segment.items));
+      const bars = document.getElementById("price-freight-bars");
+      const tbody = document.getElementById("price-freight-rows");
+      bars.replaceChildren();
+      tbody.replaceChildren();
+      for (const segment of segments.slice().sort((a, b) => b.items - a.items)) {
+        const itemShare = totalItems ? segment.items / totalItems : 0;
+        const freightShare = segment.revenue_cents
+          ? segment.freight_cents / segment.revenue_cents
+          : null;
+        appendBar(
+          bars,
+          segment.label,
+          segment.items,
+          maxItems,
+          `${numberFormat.format(segment.items)} 項 · ${pct(itemShare)}`,
+        );
+        const row = document.createElement("tr");
+        cell(row, segment.label, true);
+        cell(row, numberFormat.format(segment.items));
+        cell(row, pct(itemShare));
+        cell(row, numberFormat.format(segment.orders || 0));
+        cell(row, segment.items ? preciseMoney(segment.revenue_cents / segment.items) : "—");
+        cell(row, segment.items ? preciseMoney(segment.freight_cents / segment.items) : "—");
+        cell(row, pct(freightShare));
+        cell(row, money(segment.revenue_cents));
+        tbody.append(row);
+      }
+      const lowPriceHighFreight = segments.find(
+        (segment) => segment.key === "low_price_high_freight",
+      );
+      const freightRatio = lowPriceHighFreight && lowPriceHighFreight.revenue_cents
+        ? lowPriceHighFreight.freight_cents / lowPriceHighFreight.revenue_cents
+        : null;
+      const priceCutoff = preciseMoney(report.price_freight_analysis.price_median_cents);
+      const freightCutoff = preciseMoney(report.price_freight_analysis.freight_median_cents);
+      setText(
+        "price-freight-note",
+        `中位數切點：商品單價 ${priceCutoff}、運費 ${freightCutoff}。` +
+          (freightRatio === null
+            ? "目前期間沒有低單價 × 高運費組合的商品金額樣本。"
+            : `低單價 × 高運費組合的運費約占該組商品金額 ${pct(freightRatio)}，可作為檢查運費負擔或組合銷售的線索。`) +
+          " 這不是利潤或「薄利多銷」判定：資料沒有商品成本、折扣及營運費用；商品項目數也不等於獨立顧客數。",
+      );
     }
 
     function renderDeliveryAnalysis() {
@@ -937,6 +1034,58 @@
       document.getElementById("city-next").disabled = start + pageSize >= cities.length;
     }
 
+    function renderMarketDistribution() {
+      const states = report.geography_analysis.states;
+      const topStates = states.slice(0, 8);
+      const stateBody = document.getElementById("market-state-rows");
+      const gapBody = document.getElementById("market-gap-rows");
+      stateBody.replaceChildren();
+      gapBody.replaceChildren();
+      for (const state of topStates) {
+        const row = document.createElement("tr");
+        cell(row, state.state, true);
+        cell(row, numberFormat.format(state.orders));
+        cell(row, numberFormat.format(state.customers));
+        cell(row, pct(state.order_share));
+        cell(row, numberFormat.format(state.active_sellers));
+        cell(row, pct(state.active_seller_share));
+        cell(row, state.demand_seller_index === null ? "—" : decimalFormat.format(state.demand_seller_index));
+        stateBody.append(row);
+      }
+      const highGap = states
+        .filter((state) => state.active_sellers >= 10 && state.demand_seller_index !== null)
+        .sort((a, b) => b.demand_seller_index - a.demand_seller_index)
+        .slice(0, 5);
+      for (const state of highGap) {
+        const row = document.createElement("tr");
+        cell(row, state.state, true);
+        cell(row, numberFormat.format(state.orders));
+        cell(row, numberFormat.format(state.active_sellers));
+        cell(row, pct(state.order_share));
+        cell(row, pct(state.active_seller_share));
+        cell(row, decimalFormat.format(state.demand_seller_index));
+        gapBody.append(row);
+      }
+      if (!topStates.length) {
+        const emptyRow = document.createElement("tr");
+        const emptyCell = el("td", "目前資料不足以比較州別需求與賣家分布。", "empty");
+        emptyCell.colSpan = 7;
+        emptyRow.append(emptyCell);
+        stateBody.append(emptyRow);
+      }
+      if (!highGap.length) {
+        const emptyRow = document.createElement("tr");
+        const emptyCell = el("td", "沒有符合最低活躍賣家樣本數的州。", "empty");
+        emptyCell.colSpan = 6;
+        emptyRow.append(emptyCell);
+        gapBody.append(emptyRow);
+      }
+      setText(
+        "market-distribution-note",
+        `商品項目中，顧客與賣家位於同州的占 ${pct(report.geography_analysis.same_state_item_share)}，跨州占 ${pct(report.geography_analysis.cross_state_item_share)}。指數高於 1 表示該州訂單占比相對高於本資料期活躍賣家占比；它只是地理分布差異，不等同供需缺口或賣家產能。`,
+      );
+    }
+
     function loadCityData() {
       if (cityDataPromise) return cityDataPromise;
       cityDataPromise = (async () => {
@@ -992,8 +1141,10 @@
       renderPayments(months);
       renderDelivery(months);
       renderDemand();
+      renderPriceFreight();
       renderDeliveryAnalysis();
       renderGeography();
+      renderMarketDistribution();
       renderSellers();
     }
 
@@ -1002,7 +1153,8 @@
       if (!response.ok) throw new Error(`商業分析資料載入失敗：HTTP ${response.status}`);
       report = await response.json();
       if (!report.monthly || !report.period || !report.states
-          || !report.demand || !report.delivery_analysis) {
+          || !report.demand || !report.delivery_analysis
+          || !report.price_freight_analysis || !report.geography_analysis) {
         throw new Error("商業分析資料格式不完整");
       }
       const start = document.getElementById("start-month");

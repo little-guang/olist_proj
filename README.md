@@ -77,6 +77,11 @@ uv run python -m http.server 8000 --directory docs
 - `docs/data/business_summary.json`：月趨勢、下單時段、州別、品類、付款、顧客分群、配送時間與評價關聯及賣家風險。
 - `docs/data/cities.json`：城市彙總明細；網站進入區域分析時才會載入。
 
+網站另提供兩項精簡的結構分析：
+
+- **商品單價 × 運費**：以全資料商品項目單價與運費中位數切成四組，依月份篩選比較項目數、訂單數、商品金額及運費／商品金額比例。這適合辨認低單價商品是否伴隨相對較高運費，但資料沒有商品成本、折扣和營運費用，不能據此判定利潤或稱作「薄利多銷」。
+- **顧客需求 × 賣家所在地**：比較訂單／顧客所在州與資料期間內實際有成交的賣家州別，網站只呈現訂單前 8 州，以及至少有 10 位活躍賣家且需求／賣家指數最高的 5 州。另計同州與跨州商品項目占比。指數是州別分布差異，不代表賣家產能或實際供需缺口；此分布為全清理期間快照。
+
 若要公開網站，將專案推送到 GitHub，然後在 Repository 的 **Settings → Pages** 設定從 `main` 分支的 `/docs` 資料夾部署。部署完成後，GitHub Pages 設定頁會顯示網站網址。
 
 ## 做法 B：CSV → Python → MariaDB → ODBC → Power BI
@@ -167,4 +172,4 @@ uv run python .\clean_olist.py
 
 Kaggle 來源頁將資料集標示為 **CC BY-NC-SA 4.0**。公開分享時，請標示 `Brazilian E-Commerce Public Dataset by Olist`、連結 [資料集來源](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) 與 [CC BY-NC-SA 4.0 授權](https://creativecommons.org/licenses/by-nc-sa/4.0/)，並說明所做修改。資料集衍生內容須依相同授權分享，且不得用於商業目的；不要暗示 Olist 或 Kaggle 認可或背書本專案。本專案程式碼的授權與資料集授權分開處理。本 README 不構成法律意見。
 
-網站中的商品金額是商品明細價格總和，不含運費、退款或利潤，不代表公司淨營收。網站不包含顧客 ID、訂單 ID、評論文字或 MariaDB 憑證。
+網站中的商品金額是商品明細價格總和，不含運費、退款、商品成本或利潤，不代表公司淨營收。網站不包含顧客 ID、訂單 ID、評論文字或 MariaDB 憑證。

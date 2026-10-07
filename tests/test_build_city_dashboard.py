@@ -37,6 +37,10 @@ class BuildDashboardDataTests(unittest.TestCase):
                 {"product_id": "p1", "product_category_name": "cat"},
                 {"product_id": "p2", "product_category_name": "unknown"},
             ],
+            "sellers_clean.csv": [
+                {"seller_id": "s1", "seller_state": "SP"},
+                {"seller_id": "s2", "seller_state": "RJ"},
+            ],
             "orders_clean.csv": [
                 {
                     "order_id": "o1",
@@ -151,6 +155,32 @@ class BuildDashboardDataTests(unittest.TestCase):
         self.assertEqual(result["totals"]["delayed"], 1)
         self.assertEqual(result["totals"]["undelivered"], 1)
         self.assertEqual(result["totals"]["payment_cents"], 37_700)
+
+        price_freight = result["price_freight_analysis"]
+        self.assertEqual(len(price_freight["segments"]), 4)
+        segment_by_key = {
+            segment["key"]: segment for segment in price_freight["segments"]
+        }
+        self.assertEqual(
+            sum(row["items"] for row in segment_by_key["low_price_low_freight"]["series"]),
+            2,
+        )
+        self.assertEqual(
+            sum(row["orders"] for row in segment_by_key["low_price_low_freight"]["series"]),
+            1,
+        )
+        self.assertEqual(
+            sum(row["revenue_cents"] for row in segment_by_key["high_price_high_freight"]["series"]),
+            30_000,
+        )
+
+        geography = result["geography_analysis"]
+        state_by_code = {state["state"]: state for state in geography["states"]}
+        self.assertEqual(geography["same_state_item_share"], 0.75)
+        self.assertEqual(geography["cross_state_item_share"], 0.25)
+        self.assertEqual(state_by_code["SP"]["orders"], 2)
+        self.assertEqual(state_by_code["SP"]["customers"], 1)
+        self.assertEqual(state_by_code["SP"]["active_sellers"], 1)
 
         demand = {row["month"]: row for row in result["demand"]["months"]}
         self.assertEqual(demand["2020-01"]["hours"][10], 1)
