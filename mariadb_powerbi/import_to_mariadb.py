@@ -6,11 +6,14 @@ import pandas as pd
 import pymysql
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent
-CLEAN_DIR = BASE_DIR / "data" / "clean"
+PROJECT_DIR = BASE_DIR.parent
+CLEAN_DIR = PROJECT_DIR / "data" / "clean"
 CHUNK_SIZE = 5_000
+ENV_FILE = BASE_DIR / ".env"
+if not ENV_FILE.is_file():
+    ENV_FILE = PROJECT_DIR / ".env"
+load_dotenv(ENV_FILE)
 
 DB_CONFIG = {
     "host": os.getenv("MARIADB_HOST", "localhost"),

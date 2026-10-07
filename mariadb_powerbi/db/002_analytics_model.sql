@@ -102,6 +102,37 @@ CREATE TABLE IF NOT EXISTS `fact_order_reviews` (
         FOREIGN KEY (`order_id`) REFERENCES `fact_orders` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DELETE FROM `fact_order_reviews`
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `order_reviews` AS source
+    WHERE source.`review_id` = `fact_order_reviews`.`review_id`
+      AND source.`order_id` = `fact_order_reviews`.`order_id`
+);
+
+DELETE FROM `fact_order_payments`
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `order_payments` AS source
+    WHERE source.`order_id` = `fact_order_payments`.`order_id`
+      AND source.`payment_sequential` = `fact_order_payments`.`payment_sequential`
+);
+
+DELETE FROM `fact_order_items`
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `order_items` AS source
+    WHERE source.`order_id` = `fact_order_items`.`order_id`
+      AND source.`order_item_id` = `fact_order_items`.`order_item_id`
+);
+
+DELETE FROM `fact_orders`
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `orders` AS source
+    WHERE source.`order_id` = `fact_orders`.`order_id`
+);
+
 INSERT INTO `dim_geolocation` (
     `zip_code_prefix`, `latitude`, `longitude`, `city`, `state`, `sample_count`
 )

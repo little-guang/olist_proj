@@ -4,10 +4,12 @@ from pathlib import Path
 import pymysql
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent
 DB_DIR = BASE_DIR / "db"
+ENV_FILE = BASE_DIR / ".env"
+if not ENV_FILE.is_file():
+    ENV_FILE = BASE_DIR.parent / ".env"
+load_dotenv(ENV_FILE)
 DATABASE_NAME = os.getenv("MARIADB_DATABASE", "olist_db")
 
 DB_CONFIG = {
