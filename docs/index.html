@@ -195,6 +195,16 @@
         <article class="card"><div class="card-label">全期間顧客回購率</div><div class="metric" id="kpi-repeat">—</div><div class="metric-note" id="kpi-repeat-count"></div></article>
       </div>
       <div class="panel">
+        <div class="panel-head"><div><h3>與前一等長期間比較</h3><div class="hint" id="period-comparison-caption">比較期間載入中…</div></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>指標</th><th>所選期間</th><th>前一等長期間</th><th>變化</th></tr></thead>
+            <tbody id="period-comparison-rows"></tbody>
+          </table>
+        </div>
+        <div class="small" style="margin-top:10px">金額與數量變化同時顯示絕對差及相對變化；比率以百分點呈現。新客指本資料觀察期間內首次下單，觀察期外的購買歷史未知。相鄰期間比較可能受季節性影響，需搭配年增與業務背景判讀。</div>
+      </div>
+      <div class="panel">
         <div class="panel-head"><div><h3>管理摘要</h3><div class="hint">依目前選取期間自動計算；不代表因果關係或目標達成判定</div></div></div>
         <div id="executive-summary" class="callout"></div>
       </div>
@@ -305,6 +315,10 @@
         <article class="card"><div class="card-label">延遲訂單</div><div class="metric" id="delivery-delayed">—</div><div class="metric-note" id="delivery-delay-rate"></div></article>
         <article class="card"><div class="card-label">平均延遲天數</div><div class="metric" id="delivery-delay-days">—</div><div class="metric-note">只計算晚於預計日期的已送達訂單</div></article>
         <article class="card"><div class="card-label">平均配送天數</div><div class="metric" id="delivery-days">—</div><div class="metric-note">下單至顧客收貨</div></article>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h3>月準時／提前送達率</h3><div class="hint">依購買月份；僅納入有送達與預計日期的已送達訂單，滑過資料點可查看樣本數；低樣本月份需審慎解讀</div></div></div>
+        <div id="delivery-trend-chart" class="chart"></div>
       </div>
       <div class="grid-2">
         <div class="panel">
@@ -481,7 +495,7 @@
       container.append(row);
     }
 
-    function drawLineChart(containerId, rows, metric, color, formatter) {
+    function drawLineChart(containerId, rows, metric, color, formatter, tooltipFormatter, ariaLabel) {
       const container = document.getElementById(containerId);
       container.replaceChildren();
       if (!rows.length) {
@@ -493,7 +507,7 @@
       const svg = document.createElementNS(SVG_NS, "svg");
       svg.setAttribute("viewBox", "0 0 720 230");
       svg.setAttribute("role", "img");
-      svg.setAttribute("aria-label", `${metric} 月趨勢`);
+      svg.setAttribute("aria-label", ariaLabel || `${metric} 月趨勢`);
       const left = 62, right = 12, top = 16, bottom = 39;
       const width = 720 - left - right, height = 230 - top - bottom;
       for (let i = 0; i <= 4; i++) {
@@ -525,7 +539,9 @@
         point.setAttribute("r", rows.length > 18 ? "2.5" : "4");
         point.setAttribute("fill", color);
         const title = document.createElementNS(SVG_NS, "title");
-        title.textContent = `${rows[i].month}: ${formatter(values[i])}`;
+        title.textContent = tooltipFormatter
+          ? tooltipFormatter(rows[i], values[i])
+          : `${rows[i].month}: ${formatter(values[i])}`;
         point.append(title); svg.append(point);
       }
       const stride = Math.max(1, Math.ceil(rows.length / 8));
@@ -829,6 +845,141 @@
       setText("period-note", `${report.source} · ${selectedLabel[0]} 至 ${selectedLabel[selectedLabel.length - 1]} · 資料截止日 ${report.rfm.as_of}`);
     }
 
+    function signedValue(value, formatter) {
+      if (value > 0) return `+${formatter(value)}`;
+      if (value < 0) return `−${formatter(Math.abs(value))}`;
+      return formatter(0);
+    }
+
+    function signedPercent(value) {
+      return value > 0 ? `+${pct(value)}` : pct(value);
+    }
+
+    function renderPeriodComparison() {
+      const selected = selectedMonths();
+      const startIndex = report.period.months.indexOf(selected[0]);
+      const previousMonths = report.period.months.slice(
+        startIndex - selected.length,
+        startIndex,
+      );
+      const tbody = document.getElementById("period-comparison-rows");
+      tbody.replaceChildren();
+
+      if (!selected.length || previousMonths.length !== selected.length) {
+        setText(
+          "period-comparison-caption",
+          `資料範圍起點為 ${report.period.start}；目前沒有完整的前一等長期間，請縮短所選期間以啟用比較。`,
+        );
+        const row = document.createElement("tr");
+        const emptyCell = el("td", "無法建立等長前期基準。", "empty");
+        emptyCell.colSpan = 4;
+        row.append(emptyCell);
+        tbody.append(row);
+        return;
+      }
+
+      setText(
+        "period-comparison-caption",
+        `所選期間 ${selected[0]}–${selected[selected.length - 1]}；前期 ${previousMonths[0]}–${previousMonths[previousMonths.length - 1]}（各 ${selected.length} 個月）`,
+      );
+      const current = sumRows(report.monthly, selected);
+      const previous = sumRows(report.monthly, previousMonths);
+      const metrics = [
+        {
+          label: "商品金額",
+          value: (row) => row.revenue_cents || 0,
+          format: money,
+          change: "amount",
+        },
+        {
+          label: "訂單數",
+          value: (row) => row.orders || 0,
+          format: numberFormat.format,
+          change: "count",
+        },
+        {
+          label: "平均客單價",
+          value: (row) => row.orders ? row.revenue_cents / row.orders : null,
+          format: money,
+          change: "amount",
+        },
+        {
+          label: "新客",
+          value: (row) => row.new_buyers || 0,
+          format: numberFormat.format,
+          change: "count",
+        },
+        {
+          label: "平均運費占商品金額",
+          value: (row) => row.revenue_cents
+            ? (row.freight_cents || 0) / row.revenue_cents
+            : null,
+          format: pct,
+          change: "rate",
+        },
+        {
+          label: "按時／提前送達率",
+          value: (row) => row.delivered
+            ? (row.on_time || 0) / row.delivered
+            : null,
+          format: pct,
+          sample: (row) => `n=${numberFormat.format(row.delivered || 0)}`,
+          change: "rate",
+        },
+        {
+          label: "平均評論分數",
+          value: (row) => average(row.review_score_sum || 0, row.review_count || 0),
+          format: (value) => `${decimalFormat.format(value)} / 5`,
+          sample: (row) => `n=${numberFormat.format(row.review_count || 0)}`,
+          change: "score",
+        },
+      ];
+
+      for (const metric of metrics) {
+        const currentValue = metric.value(current);
+        const previousValue = metric.value(previous);
+        const row = document.createElement("tr");
+        cell(row, metric.label, true);
+        for (const [value, source] of [
+          [currentValue, current],
+          [previousValue, previous],
+        ]) {
+          const display = value === null
+            ? "—"
+            : `${metric.format(value)}${metric.sample ? ` · ${metric.sample(source)}` : ""}`;
+          cell(row, display);
+        }
+
+        let changeText = "—";
+        if (currentValue !== null && previousValue !== null) {
+          if (metric.change === "rate") {
+            changeText = signedValue(
+              (currentValue - previousValue) * 100,
+              (value) => `${decimalFormat.format(value)} 個百分點`,
+            );
+          } else if (metric.change === "score") {
+            changeText = signedValue(
+              currentValue - previousValue,
+              (value) => `${decimalFormat.format(value)} 分`,
+            );
+          } else {
+            const delta = currentValue - previousValue;
+            const absolute = signedValue(
+              delta,
+              metric.change === "amount" ? money : numberFormat.format,
+            );
+            changeText = previousValue
+              ? `${absolute}（${signedPercent(delta / previousValue)}）`
+              : currentValue
+                ? `${absolute}（前期為 0，無法計算相對變化）`
+                : absolute;
+          }
+        }
+        cell(row, changeText);
+        tbody.append(row);
+      }
+    }
+
     function renderTrend(monthRows) {
       drawLineChart("revenue-chart", monthRows, "revenue_cents", "#20664c", (value) => money(value));
       drawLineChart("orders-chart", monthRows, "orders", "#344f65", (value) => numberFormat.format(value));
@@ -951,6 +1102,22 @@
     function renderDelivery(monthRows) {
       const total = sumRows(monthRows);
       const delivered = total.delivered || 0;
+      const trendRows = monthRows
+        .filter((row) => row.delivered)
+        .map((row) => ({
+          month: row.month,
+          on_time_rate: (row.on_time || 0) / row.delivered,
+          delivered: row.delivered,
+        }));
+      drawLineChart(
+        "delivery-trend-chart",
+        trendRows,
+        "on_time_rate",
+        "#344f65",
+        pct,
+        (row, value) => `${row.month}: ${pct(value)}；可判斷已送達 ${numberFormat.format(row.delivered)} 筆`,
+        "按月準時／提前送達率趨勢圖",
+      );
       setText("delivery-ontime", pct(delivered ? total.on_time / delivered : null));
       setText("delivery-delayed", numberFormat.format(total.delayed || 0));
       setText("delivery-delay-rate", `${pct(total.orders ? (total.delayed || 0) / total.orders : null)} · 占全部訂單`);
@@ -1135,6 +1302,7 @@
       const selected = new Set(selectedMonths());
       const months = report.monthly.filter((row) => selected.has(row.month));
       renderOverview(months);
+      renderPeriodComparison();
       renderTrend(months);
       renderCategories();
       renderCustomers();
