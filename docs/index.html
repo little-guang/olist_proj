@@ -141,6 +141,36 @@
     .error { background: #fff1ed; color: #842b1c; }
     details { margin-top: 12px; color: var(--muted); font-size: .83rem; }
     summary { cursor: pointer; color: #385247; }
+    .report-section {
+      margin: 0 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+    .report-section > .section-title {
+      display: flex;
+      align-items: center;
+      margin: 0;
+      padding: 16px 19px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .report-section > .section-title::-webkit-details-marker { display: none; }
+    .report-section > .section-title::before {
+      width: 0;
+      height: 0;
+      margin-right: 12px;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 6px solid var(--green);
+      content: "";
+      transition: transform .15s ease;
+    }
+    .report-section[open] > .section-title { border-bottom: 1px solid var(--line); }
+    .report-section[open] > .section-title::before { transform: rotate(90deg); }
+    .report-section > .section-title h2 { color: var(--ink); }
+    .report-section > .section-title .hint { margin-top: 2px; }
     footer { max-width: 1200px; margin: 0 auto; padding: 0 20px 35px; color: var(--muted); font-size: .84rem; }
     footer a { color: var(--green); }
     @media (max-width: 820px) {
@@ -171,15 +201,15 @@
     <div class="period-note" id="period-note">正在載入分析資料…</div>
     <a class="repo-link" href="https://github.com/little-guang/olist_proj" target="_blank" rel="noopener noreferrer">查看 GitHub 專案 ↗</a>
   </header>
-  <nav aria-label="報告章節">
+  <nav aria-label="報告章節（選擇展開）">
     <a href="#overview">營運總覽</a><a href="#trend">趨勢</a><a href="#demand">購買時段</a><a href="#category">品類</a>
     <a href="#item-economics">單價／運費</a><a href="#customer">顧客</a><a href="#payments">付款</a><a href="#delivery">物流</a>
     <a href="#geography">區域／城市</a><a href="#seller">賣家</a>
   </nav>
   <main id="report">
     <div id="load-error" hidden></div>
-    <section id="overview">
-      <div class="section-title"><div><h2>營運總覽</h2><div class="hint">期間篩選會同步更新可分月彙總的營運分析</div></div></div>
+    <details id="overview" class="report-section" open>
+      <summary class="section-title"><div><h2>營運總覽</h2><div class="hint">期間篩選會同步更新可分月彙總的營運分析</div></div></summary>
       <div class="controls" style="grid-template-columns:repeat(2,minmax(0,1fr))">
         <div><label for="start-month">開始月份</label><select id="start-month"></select></div>
         <div><label for="end-month">結束月份</label><select id="end-month"></select></div>
@@ -208,10 +238,10 @@
         <div class="panel-head"><div><h3>管理摘要</h3><div class="hint">依目前選取期間自動計算；不代表因果關係或目標達成判定</div></div></div>
         <div id="executive-summary" class="callout"></div>
       </div>
-    </section>
+    </details>
 
-    <section id="trend">
-      <div class="section-title"><div><h2>營收與需求趨勢</h2><div class="hint">按購買月份統計；營收為商品明細價，不包含運費</div></div></div>
+    <details id="trend" class="report-section">
+      <summary class="section-title"><div><h2>營收與需求趨勢</h2><div class="hint">按購買月份統計；營收為商品明細價，不包含運費</div></div></summary>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h3>月營收</h3><div class="hint">商品金額；滑過資料點查看月別金額</div></div></div>
@@ -226,10 +256,10 @@
         <div class="panel-head"><div><h3>同期年增</h3><div class="hint" id="yoy-caption">找出所選期間內最新且有去年同期資料的月份</div></div></div>
         <div id="yoy-result" class="callout"></div>
       </div>
-    </section>
+    </details>
 
-    <section id="demand">
-      <div class="section-title"><div><h2>顧客下單尖峰時段</h2><div class="hint">依訂單建立時間統計；時間沿用來源資料記錄，不另作時區轉換</div></div></div>
+    <details id="demand" class="report-section">
+      <summary class="section-title"><div><h2>顧客下單尖峰時段</h2><div class="hint">依訂單建立時間統計；時間沿用來源資料記錄，不另作時區轉換</div></div></summary>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h3>每日各時段訂單量</h3><div class="hint">找出一天中的需求尖峰</div></div></div>
@@ -241,10 +271,10 @@
           <div id="purchase-peak-note" class="callout" style="margin-top:14px"></div>
         </div>
       </div>
-    </section>
+    </details>
 
-    <section id="item-economics">
-      <div class="section-title"><div><h2>商品單價、運費與銷售結構</h2><div class="hint">依全資料商品項目單價與運費中位數切分；數值隨上方期間篩選更新</div></div></div>
+    <details id="item-economics" class="report-section">
+      <summary class="section-title"><div><h2>商品單價、運費與銷售結構</h2><div class="hint">依全資料商品項目單價與運費中位數切分；數值隨上方期間篩選更新</div></div></summary>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h3>四種單價／運費組合的商品項目數</h3><div class="hint">比較訂單量、商品金額及運費占比</div></div></div>
@@ -256,10 +286,10 @@
         </div>
       </div>
       <div id="price-freight-note" class="callout" style="margin-top:14px"></div>
-    </section>
+    </details>
 
-    <section id="category">
-      <div class="section-title"><div><h2>品類組合與集中度</h2><div class="hint">品類金額按商品價格計；每筆商品項目依商品主檔分類</div></div></div>
+    <details id="category" class="report-section">
+      <summary class="section-title"><div><h2>品類組合與集中度</h2><div class="hint">品類金額按商品價格計；每筆商品項目依商品主檔分類</div></div></summary>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h3>品類營收排名</h3><div class="hint">切換最高／最低商品金額</div></div>
@@ -274,10 +304,10 @@
           <div class="small" id="category-count" style="margin-top:10px"></div>
         </div>
       </div>
-    </section>
+    </details>
 
-    <section id="customer">
-      <div class="section-title"><div><h2>顧客回購與價值分群</h2><div class="hint">顧客以 customer_unique_id 去重；RFM 與客單分組是資料全期間快照，不隨月份篩選</div></div></div>
+    <details id="customer" class="report-section">
+      <summary class="section-title"><div><h2>顧客回購與價值分群</h2><div class="hint">顧客以 customer_unique_id 去重；RFM 與客單分組是資料全期間快照，不隨月份篩選</div></div></summary>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h3>RFM 顧客分群</h3><div class="hint" id="rfm-asof"></div></div></div>
@@ -292,10 +322,10 @@
           <div class="small" style="margin-top:12px">回購率＝期間內至少下單 2 次的顧客數 ÷ 該消費層級顧客數。</div>
         </div>
       </div>
-    </section>
+    </details>
 
-    <section id="payments">
-      <div class="section-title"><div><h2>付款與交易結構</h2><div class="hint">金額按付款明細加總；同筆訂單可能有多筆付款紀錄</div></div></div>
+    <details id="payments" class="report-section">
+      <summary class="section-title"><div><h2>付款與交易結構</h2><div class="hint">金額按付款明細加總；同筆訂單可能有多筆付款紀錄</div></div></summary>
       <div class="grid-2">
         <div class="panel">
           <div class="panel-head"><div><h3>付款方式金額占比</h3><div class="hint">各付款類型金額及其占總付款金額比例</div></div></div>
@@ -306,10 +336,10 @@
           <div class="table-wrap"><table><thead><tr><th>付款方式</th><th>付款金額</th><th>金額占比</th><th>付款筆數</th><th>平均分期</th></tr></thead><tbody id="payment-rows"></tbody></table></div>
         </div>
       </div>
-    </section>
+    </details>
 
-    <section id="delivery">
-      <div class="section-title"><div><h2>配送履約與顧客體驗</h2><div class="hint">「未完成／日期缺漏」不納入按時率分母；延遲率另以全部訂單為分母</div></div></div>
+    <details id="delivery" class="report-section">
+      <summary class="section-title"><div><h2>配送履約與顧客體驗</h2><div class="hint">「未完成／日期缺漏」不納入按時率分母；延遲率另以全部訂單為分母</div></div></summary>
       <div class="cards">
         <article class="card"><div class="card-label">按時／提前</div><div class="metric" id="delivery-ontime">—</div><div class="metric-note">占可判斷已送達訂單</div></article>
         <article class="card"><div class="card-label">延遲訂單</div><div class="metric" id="delivery-delayed">—</div><div class="metric-note" id="delivery-delay-rate"></div></article>
@@ -348,10 +378,10 @@
         <div class="table-wrap"><table><thead><tr><th>配送階段</th><th>全部樣本平均</th><th>低分樣本平均</th><th>高分樣本平均</th><th>低分－高分</th><th>可用樣本</th></tr></thead><tbody id="delivery-stage-rows"></tbody></table></div>
         <div id="delivery-stage-note" class="callout" style="margin-top:14px"></div>
       </div>
-    </section>
+    </details>
 
-    <section id="geography">
-      <div class="section-title"><div><h2>區域與城市機會</h2><div class="hint">選擇「全部州別」比較全國；選擇單一州別後，州別排名與城市明細都會同步篩選</div></div></div>
+    <details id="geography" class="report-section">
+      <summary class="section-title"><div><h2>區域與城市機會</h2><div class="hint">選擇「全部州別」比較全國；選擇單一州別後，州別排名與城市明細都會同步篩選</div></div></summary>
       <div class="controls" style="grid-template-columns:minmax(0,260px) minmax(0,260px)">
         <div><label for="city-state-local">州別篩選</label><select id="city-state-local"><option value="">全部州別</option></select></div>
         <div><label for="city-sort">城市排序</label><select id="city-sort"><option value="revenue">商品金額</option><option value="orders">訂單數</option><option value="aov">平均客單價</option><option value="late">延遲率</option></select></div>
@@ -380,16 +410,16 @@
           <div id="market-distribution-note" class="callout" style="margin-top:14px"></div>
         </div>
       </div>
-    </section>
+    </details>
 
-    <section id="seller">
-      <div class="section-title"><div><h2>賣家履約風險</h2><div class="hint">全期間快照；風險標籤是透明的初步篩查規則，不是因果判定</div></div></div>
+    <details id="seller" class="report-section">
+      <summary class="section-title"><div><h2>賣家履約風險</h2><div class="hint">全期間快照；風險標籤是透明的初步篩查規則，不是因果判定</div></div></summary>
       <div class="panel">
         <div class="panel-head"><div><h3>需關注賣家</h3><div class="hint">至少 10 筆可判斷的已送達訂單才套用延遲／評分風險門檻</div></div></div>
         <div id="seller-summary" class="callout" style="margin-bottom:13px"></div>
         <div class="table-wrap"><table><thead><tr><th>賣家 ID</th><th>風險</th><th>訂單</th><th>已送達樣本</th><th>延遲率</th><th>平均評論</th><th>商品金額</th></tr></thead><tbody id="seller-rows"></tbody></table></div>
       </div>
-    </section>
+    </details>
   </main>
   <footer>
     <section aria-labelledby="attribution-title" class="panel">
@@ -1331,7 +1361,13 @@
         start.append(new Option(month, month));
         end.append(new Option(month, month));
       }
-      start.value = report.period.start;
+      const defaultComparisonLength = Math.min(
+        12,
+        Math.floor(report.period.months.length / 2),
+      );
+      start.value = report.period.months[
+        report.period.months.length - defaultComparisonLength
+      ] || report.period.start;
       end.value = report.period.end;
       const states = report.states.map((row) => row.state).sort();
       for (const state of states) {
@@ -1346,6 +1382,12 @@
     for (const id of ["start-month", "end-month", "category-direction"]) {
       document.getElementById(id).addEventListener("change", render);
     }
+    document.querySelectorAll('nav a[href^="#"]').forEach((link) => {
+      link.addEventListener("click", () => {
+        const section = document.getElementById(link.hash.slice(1));
+        if (section instanceof HTMLDetailsElement) section.open = true;
+      });
+    });
     document.getElementById("city-state-local").addEventListener("change", () => { cityPage = 0; renderGeography(); });
     document.getElementById("city-sort").addEventListener("change", () => { cityPage = 0; renderGeography(); });
     document.getElementById("city-previous").addEventListener("click", () => { cityPage--; renderGeography(); });
